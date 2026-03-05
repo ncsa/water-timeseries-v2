@@ -183,3 +183,35 @@ def plot_water_time_series_dw(
     plt.tight_layout()  # Adjust layout to make room for rotated labels and legend
 
     return plt.gcf()
+
+
+def plot_water_time_series_jrc(df: pd.DataFrame, first_break: pd.Timestamp | None,  plot_variables: list=['area_water_permanent', 'area_water_seasonal', 'area_land']
+) -> plt.figure:
+    
+    df['area_total'] = df[['area_data', 'area_nodata']].sum(axis=1)
+    fig, ax = plt.subplots(figsize=(10, 5))
+    color_map = {
+        "area_water_permanent": "#4a90e2",  # Blue
+        "bare": "#8B4513",  # Brown
+        "area_water_seasonal": "#a6bddb"
+    }
+    # pull annual data from xarray dataset
+    # plot annual lake area
+    df_melt = df.melt(id_vars=['date'], value_vars=plot_variables)
+    sns.lineplot(df_melt, x='date', y='value', hue='variable', ax=ax, marker='o', markersize=6, linewidth=1.5)
+    # create no data area
+    ax.fill_between(x=df['date'], y1=df['area_total']- df['area_nodata'], y2=df['area_total'], fc=(0.7,0.7,0.7,0.5))
+    
+    # figure improvements
+    # ax.set_xlim(start_date_dt_viz, date.fromisoformat('2022-01-01'))
+    ax.set_ylabel('Total lake area [ha]')
+    ax.grid(visible=True, which='major', lw=0.5)
+    # Set minor gridlines
+    ax.xaxis.set_minor_locator(mdates.YearLocator())
+    ax.grid(visible=True, which='minor', lw=0.2)
+    # ax.set_title('Lake: '+ str(lake_id))
+    ax.legend().set_title('')
+    
+    fig = ax.get_figure()
+    # return figure
+    return fig
