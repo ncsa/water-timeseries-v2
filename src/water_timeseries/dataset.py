@@ -180,7 +180,10 @@ class DWDataset(LakeDataset):
             bp = None
 
         figure = plot_water_time_series_dw(
-            df_plot, first_break=None, normalization_factor=normalization_factor
+            df_plot,
+            first_break=None,
+            normalization_factor=normalization_factor,
+            lake_id=id_geohash,
         )
 
         return figure
@@ -246,17 +249,26 @@ class JRCDataset(LakeDataset):
             breakpoints (BreakpointMethod, optional): Breakpoint detection method to use.
         """
         self._normalize_ds()
-        df = self.ds.sel(id_geohash=id_geohash).load().to_dataframe().dropna().reset_index(drop=False)
+        df = (
+            self.ds.sel(id_geohash=id_geohash)
+            .load()
+            .to_dataframe()
+            .dropna()
+            .reset_index(drop=False)
+        )
+        normalization_factor = df["area_data"].max()
 
-        # normalization_factor = df['area_data'].max()
         if breakpoints is not None:
             bp = None
         else:
             bp = None
+
         fig = plot_water_time_series_jrc(
             df,
             first_break=bp,
             plot_variables=["area_water_permanent", "area_water_seasonal", "area_land"],
+            normalization_factor=normalization_factor,
+            lake_id=id_geohash,
         )
 
         # return figure
