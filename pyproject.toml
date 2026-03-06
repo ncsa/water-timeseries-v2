@@ -59,6 +59,7 @@ dependencies = [
     "loguru>=0.7.3",
     "typer>=0.24.1",
     "typer-config>=1.5.0",
+    "lz4>=4.4.5",
 ]
 
 [project.optional-dependencies]
