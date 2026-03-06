@@ -1,6 +1,5 @@
 """Tests for dataset loading and initialization."""
 
-import pytest
 from water_timeseries.dataset import DWDataset, JRCDataset
 
 

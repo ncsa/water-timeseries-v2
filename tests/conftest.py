@@ -4,9 +4,10 @@ This module provides pytest fixtures that load real test datasets
 from the tests/data directory.
 """
 
+from pathlib import Path
+
 import pytest
 import xarray as xr
-from pathlib import Path
 
 
 @pytest.fixture

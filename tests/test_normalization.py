@@ -1,7 +1,7 @@
 """Tests for dataset normalization."""
 
 import numpy as np
-import pytest
+
 from water_timeseries.dataset import DWDataset, JRCDataset
 
 

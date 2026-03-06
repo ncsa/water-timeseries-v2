@@ -1,7 +1,7 @@
 """Tests for plotting functionality."""
 
 import matplotlib.pyplot as plt
-import pytest
+
 from water_timeseries.dataset import DWDataset, JRCDataset
 
 
