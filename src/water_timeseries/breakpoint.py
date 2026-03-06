@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
 import Rbeast as rb
-from water_timeseries.dataset import LakeDataset
 from tqdm import tqdm
+
+from water_timeseries.dataset import LakeDataset
 
 
 class BreakpointMethod:
@@ -31,7 +32,7 @@ class BreakpointMethod:
 
 
 class SimpleBreakpoint(BreakpointMethod):
-    def __init__(self, kwargs_break: dict=dict(window=3, method="median", threshold=0.25)):
+    def __init__(self, kwargs_break: dict = dict(window=3, method="median", threshold=0.25)):
         super().__init__(method_name="simple")
         self.kwargs_break = kwargs_break
         self.breakpoint_columns = ["date_break", "date_before_break", "break_method"]
@@ -66,9 +67,7 @@ class SimpleBreakpoint(BreakpointMethod):
 
         # Get the first index where there are at least two consecutive True values
         first_break_date = (
-            rolling_diff[consecutive_mask].index.min()
-            if not rolling_diff[consecutive_mask].empty
-            else None
+            rolling_diff[consecutive_mask].index.min() if not rolling_diff[consecutive_mask].empty else None
         )
 
         # Determine the preceding index value (previous_date) if available
@@ -90,9 +89,7 @@ class SimpleBreakpoint(BreakpointMethod):
         dataset._normalize_ds()
         ds = dataset.ds_normalized
         df_normed = ds.sel(id_geohash=object_id).to_pandas()
-        first_break, previous_date = self.get_first_break_date(
-            df=df_normed, column=dataset.water_column
-        )
+        first_break, previous_date = self.get_first_break_date(df=df_normed, column=dataset.water_column)
         df_out = pd.DataFrame(
             {
                 self.breakpoint_columns[0]: [first_break],
@@ -157,8 +154,6 @@ class BeastBreakpoint(BreakpointMethod):
         break_df = break_df.sort_values("proba_rbeast", ascending=False).copy()
         break_df["break_number"] = range(1, len(break_df) + 1)
 
-        break_df_out = break_df.rename(columns={"date": "date_break"}).set_index(
-            "id_geohash"
-        )
+        break_df_out = break_df.rename(columns={"date": "date_break"}).set_index("id_geohash")
         break_df_out["break_method"] = self.method_name
         return break_df_out[self.breakpoint_columns]

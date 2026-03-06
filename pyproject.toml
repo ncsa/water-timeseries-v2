@@ -59,10 +59,15 @@ dependencies = [
     "loguru>=0.7.3",
     "typer>=0.24.1",
     "typer-config>=1.5.0",
+]
+
+[project.optional-dependencies]
+docs = [
     "mkdocs>=1.5.0,<2.0",
     "mkdocs-material>=9.4.0",
     "mkdocstrings[python]>=0.24.0",
-    "pymdown-extensions>=10.0"
+    "pymdown-extensions>=10.0",
+    "mike[docs]>=2.1.3",
 ]
 
 [project.scripts]
@@ -76,7 +81,6 @@ build-backend = "hatchling.build"
 # use ruff as the primary linter/formatter with compatibility to black/isort
 # ruff will enforce the same line length and import sorting style
 line-length = 120
-format = true
 extend-select = ["I"]
 exclude = [".venv", "build", "dist", "__pycache__"]
 extend-ignore = ["E203"]
