@@ -4,6 +4,7 @@ import Rbeast as rb
 from tqdm import tqdm
 
 from water_timeseries.dataset import LakeDataset
+from water_timeseries.utils.data import calculate_water_area_after, calculate_water_area_before
 
 
 class BreakpointMethod:
@@ -101,12 +102,22 @@ class SimpleBreakpoint(BreakpointMethod):
             },
             index=[object_id],
         )
-        
+
         break_list = []
         df_water = dataset.ds.sel(id_geohash=object_id).to_dataframe()
         for i, row in df_out.iterrows():
             id_geohash = row.name
-            df_breaks = pd.concat([row, calculate_water_area_before(df_water, break_date=row['date_break'], water_column=dataset.water_column), calculate_water_area_after(df_water, break_date_after=row['date_after_break'], water_column=dataset.water_column)])
+            df_breaks = pd.concat(
+                [
+                    row,
+                    calculate_water_area_before(
+                        df_water, break_date=row["date_break"], water_column=dataset.water_column
+                    ),
+                    calculate_water_area_after(
+                        df_water, break_date_after=row["date_after_break"], water_column=dataset.water_column
+                    ),
+                ]
+            )
             df_breaks.name = id_geohash
             break_list.append(df_breaks)
         break_df = pd.concat(break_list, axis=1).T
@@ -173,30 +184,27 @@ class BeastBreakpoint(BreakpointMethod):
 
         break_df_out = break_df.rename(columns={"date": "date_break"}).set_index("id_geohash")
         break_df_out["break_method"] = self.method_name
-        
+
         df_out = break_df_out[self.breakpoint_columns]
 
         break_list = []
         df_water = dataset.ds.sel(id_geohash=object_id).to_dataframe()
         for i, row in df_out.iterrows():
             id_geohash = row.name
-            df_breaks = pd.concat([row, calculate_water_area_before(df_water, break_date=row['date_break'], water_column=dataset.water_column), calculate_water_area_after(df_water, break_date_after=row['date_after_break'], water_column=dataset.water_column)])
+            df_breaks = pd.concat(
+                [
+                    row,
+                    calculate_water_area_before(
+                        df_water, break_date=row["date_break"], water_column=dataset.water_column
+                    ),
+                    calculate_water_area_after(
+                        df_water, break_date_after=row["date_after_break"], water_column=dataset.water_column
+                    ),
+                ]
+            )
             df_breaks.name = id_geohash
             break_list.append(df_breaks)
         break_df = pd.concat(break_list, axis=1).T
         break_df.index.name = "id_geohash"
-        
+
         return break_df
-
-
-def calculate_water_area_before(df_water, break_date, water_column:str, stats=['mean', 'median', 'std', 'min', 'max']):
-    before = df_water.loc[:break_date][water_column].agg(stats)
-    cols_out = [f'pre_break_{col}' for col in before.index]
-    before.index = cols_out
-    return before
-
-def calculate_water_area_after(df_water, break_date_after, water_column:str, stats=['mean', 'median', 'std', 'min', 'max']):
-    after = df_water.loc[break_date_after:][water_column].agg(stats)
-    cols_out = [f'post_break_{col}' for col in after.index]
-    after.index = cols_out
-    return after
