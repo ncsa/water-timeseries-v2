@@ -21,6 +21,7 @@ Documentation is automatically built and deployed on every push to `main` using 
 - **Data Normalization**: Automatic normalization and scaling of time series
 - **Breakpoint Detection**: Statistical (SimpleBreakpoint) and advanced (RBEAST) methods for detecting water extent changes
 - **Batch Processing**: Efficient processing of multiple spatial entities
+- **Comprehensive Testing**: Full test coverage including breakpoint detection, normalization, and integration tests
 
 ## Quick Start
 
@@ -59,6 +60,16 @@ pip install -e ".[dev]"
 - **JRCDataset**: JRC water classification processor
 - **SimpleBreakpoint**: Statistical breakpoint detection
 - **BeastBreakpoint**: Advanced RBEAST-based detection
+
+## Testing
+
+The package includes comprehensive tests covering:
+- Dataset normalization and masking
+- Breakpoint detection methods (Simple and RBEAST)
+- Batch processing functionality
+- Integration tests with real and synthetic data
+
+Run tests with: `pytest`
 
 ## Contributing
 
