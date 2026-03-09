@@ -8,41 +8,22 @@ authors = [
 ]
 requires-python = ">=3.11, <3.14"
 dependencies = [
-    "pip",
-    "ipykernel",
-    "jupyterlab",
     "pandas",
     "geopandas>=0.8.0",
     "xarray",
     "tqdm",
-    # "eemont",
-    # "geemap",
     "netcdf4",
     "python-geohash",
     "seaborn",
-    "matplotlib",
-    # "cartopy",
+    "matplotlib>=3.8.0",
     "shapely",
     "contextily",
-    "jupyterlab",
     "pyarrow",
     "h3pandas",
     "h3<=3.6",
     "dask[dataframe]>=2024.12.1",
-    "setuptools>=65.0",
-    "wheel>=0.38.0",
-    "twine>=4.0.0",
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
-    "flake8>=6.0",
-    "black>=23.0",
-    "isort>=5.0",
-    "mypy>=1.0",
-    "gh>=0.0.4",
     "joblib>=1.4.2",
     "ray[default]>=2.40.0",
-    # "ffmpeg>=1.4",
-    # "xee>=0.0.19",
     "h5netcdf>=1.4.1",
     "zarr>=2.18.4",
     "opencv-python>=4.11.0.86",
@@ -53,16 +34,29 @@ dependencies = [
     "plotly-geo>=1.0.0",
     "dask-geopandas>=0.4.2",
     "sklearn-xarray>=0.4.0",
-    # "lonboard>=0.12.1",
     "rbeast>=0.1.23",
-    "ruff>=0.15.1",
     "loguru>=0.7.3",
     "typer>=0.24.1",
     "typer-config>=1.5.0",
     "lz4>=4.4.5",
+    "ipykernel",
+    "jupyterlab",
 ]
 
 [project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "isort>=5.0",
+    "flake8>=6.0",
+    "mypy>=1.0",
+    "ruff>=0.15.1",
+    "setuptools>=65.0",
+    "wheel>=0.38.0",
+    "twine>=4.0.0",
+    "gh>=0.0.4",
+]
 docs = [
     "mkdocs>=1.5.0,<2.0",
     "mkdocs-material>=9.4.0",
@@ -102,6 +96,14 @@ markers = [
     "loading: Tests for dataset loading",
     "normalization: Tests for data normalization",
     "plotting: Tests for plotting functionality",
+]
+
+# Filter out third-party deprecation warnings
+filterwarnings = [
+    "ignore::DeprecationWarning:matplotlib._fontconfig_pattern",
+    "ignore::DeprecationWarning:matplotlib._mathtext",
+    "ignore:parseString.*:DeprecationWarning",
+    "ignore:enablePackrat.*:DeprecationWarning",
 ]
 
 # Console output

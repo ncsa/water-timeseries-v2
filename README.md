@@ -21,6 +21,7 @@ Documentation is automatically built and deployed on every push to `main` using 
 - **Data Normalization**: Automatic normalization and scaling of time series
 - **Breakpoint Detection**: Statistical (SimpleBreakpoint) and advanced (RBEAST) methods for detecting water extent changes
 - **Batch Processing**: Efficient processing of multiple spatial entities
+- **Comprehensive Testing**: Full test coverage including breakpoint detection, normalization, and integration tests
 
 ## Quick Start
 
@@ -29,10 +30,13 @@ from water_timeseries.dataset import DWDataset
 import xarray as xr
 
 # Load data
-ds = xr.open_dataset("land_cover_data.nc")
+ds = xr.open_dataset("water_data.nc")
 
 # Process with Dynamic World handler
 processor = DWDataset(ds)
+
+# Access time series
+water_extent = processor.ds_normalized[processor.water_column]
 
 # Access normalized time series
 water_extent = processor.ds_normalized["water"]
@@ -41,8 +45,11 @@ water_extent = processor.ds_normalized["water"]
 ## Installation
 
 ```bash
-pip install water-timeseries
+git clone https://github.com/PermafrostDiscoveryGateway/water-timeseries-v2
+cd water-timeseries-v2
 ```
+
+`pip install .` or `uv sync`
 
 Or for development:
 
@@ -54,11 +61,25 @@ pip install -e ".[dev]"
 
 ## Main Classes
 
-- **LakeDataset**: Base class for lake dataset processing
+### Datasets
+
 - **DWDataset**: Dynamic World land cover processor
 - **JRCDataset**: JRC water classification processor
+
+### Breakpoints
+
 - **SimpleBreakpoint**: Statistical breakpoint detection
 - **BeastBreakpoint**: Advanced RBEAST-based detection
+
+## Testing
+
+The package includes comprehensive tests covering:
+- Dataset normalization and masking
+- Breakpoint detection methods (Simple and RBEAST)
+- Batch processing functionality
+- Integration tests with real and synthetic data
+
+Run tests with: `pytest`
 
 ## Contributing
 

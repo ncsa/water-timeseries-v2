@@ -2,18 +2,26 @@
 
 ## Installation
 
-Install the package using pip:
-
-```bash
-pip install water-timeseries
-```
-
-Or if you're developing locally:
+For development with all testing and documentation tools:
 
 ```bash
 git clone https://github.com/PermafrostDiscoveryGateway/water-timeseries-v2
 cd water-timeseries-v2
 pip install -e ".[dev]"
+```
+
+Or with uv:
+
+```bash
+git clone https://github.com/PermafrostDiscoveryGateway/water-timeseries-v2
+cd water-timeseries-v2
+uv sync
+```
+
+For installing just the runtime dependencies:
+
+```bash
+pip install .
 ```
 
 ## Quick Example
@@ -45,6 +53,39 @@ Handles Dynamic World land cover data with classes for water, bare, snow, trees,
 
 ### `JRCDataset`
 Handles Joint Research Centre (JRC) water data with permanent and seasonal water classifications.
+
+## Testing
+
+The package includes comprehensive tests for all functionality. Tests are organized by module and cover:
+
+- **Dataset processing**: Normalization, masking, and preprocessing
+- **Breakpoint detection**: Simple and RBEAST-based methods
+- **Integration tests**: End-to-end functionality with real and synthetic data
+
+### Running Tests
+
+To run the test suite:
+
+```bash
+# Install with development dependencies
+pip install -e ".[dev]"
+
+# Run all tests
+pytest
+
+# Run specific test modules
+pytest tests/test_breakpoints.py
+pytest tests/test_normalization.py
+
+# Run with coverage
+pytest --cov=water_timeseries
+```
+
+### Test Data
+
+Tests use both real and synthetic datasets:
+- **Real data**: Located in `tests/data/` (DW and JRC test datasets)
+- **Synthetic data**: Generated programmatically for predictable breakpoint testing
 
 ## Next Steps
 

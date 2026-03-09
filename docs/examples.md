@@ -76,3 +76,37 @@ masked_normalized = processor.ds_normalized  # Normalized masked
 print(processor.ds_ismasked_)
 print(processor.ds_normalized_ismasked_)
 ```
+
+## Breakpoint Detection
+
+Detect changes in water extent over time using statistical or advanced methods:
+
+```python
+from water_timeseries.breakpoint import SimpleBreakpoint, BeastBreakpoint
+
+# Initialize dataset
+processor = DWDataset(ds)
+
+# Simple statistical breakpoint detection
+simple_bp = SimpleBreakpoint()
+breaks_simple = simple_bp.calculate_break(processor, geohash_id="your_geohash")
+
+# Advanced RBEAST-based detection
+beast_bp = BeastBreakpoint()
+breaks_beast = beast_bp.calculate_break(processor, geohash_id="your_geohash")
+
+# Batch processing for all geohashes
+all_breaks = simple_bp.calculate_breaks_batch(processor, progress_bar=True)
+
+# Results include:
+# - date_break: When the break was detected
+# - date_before_break: Date immediately before the break
+# - break_method: "simple" or "rbeast"
+# - break_number: Sequential numbering (Beast only)
+# - proba_rbeast: Probability score (Beast only)
+```
+
+### Breakpoint Methods
+
+- **SimpleBreakpoint**: Statistical method using rolling window comparisons
+- **BeastBreakpoint**: Advanced Bayesian analysis using RBEAST library
