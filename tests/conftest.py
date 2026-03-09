@@ -51,8 +51,8 @@ def synthetic_dw_dataset_with_break():
 
     # Create data with breakpoint: high values then sharp drop
     n_dates = len(dates)
-    water_high = np.random.uniform(0.8, 0.9, n_dates//2)
-    water_low = np.random.uniform(0.1, 0.2, n_dates - n_dates//2)
+    water_high = np.random.uniform(0.8, 0.9, n_dates // 2)
+    water_low = np.random.uniform(0.1, 0.2, n_dates - n_dates // 2)
     water_values = np.concatenate([water_high, water_low])
 
     # Create other land cover classes (simplified)
@@ -81,7 +81,7 @@ def synthetic_dw_dataset_with_break():
         coords={
             "date": dates,
             "id_geohash": geohashes,
-        }
+        },
     )
 
     return ds
@@ -126,7 +126,7 @@ def synthetic_dw_dataset_no_break():
         coords={
             "date": dates,
             "id_geohash": geohashes,
-        }
+        },
     )
 
     return ds
@@ -146,8 +146,8 @@ def synthetic_jrc_dataset_with_break():
 
     n_dates = len(dates)
     # Create breakpoint pattern
-    perm_high = np.random.uniform(0.8, 0.9, n_dates//2)
-    perm_low = np.random.uniform(0.1, 0.2, n_dates - n_dates//2)
+    perm_high = np.random.uniform(0.8, 0.9, n_dates // 2)
+    perm_low = np.random.uniform(0.1, 0.2, n_dates - n_dates // 2)
     permanent_values = np.concatenate([perm_high, perm_low])
 
     seasonal_values = np.random.uniform(0.0, 0.1, n_dates)
@@ -163,7 +163,7 @@ def synthetic_jrc_dataset_with_break():
         coords={
             "date": dates,
             "id_geohash": geohashes,
-        }
+        },
     )
 
     return ds

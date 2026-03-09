@@ -16,7 +16,7 @@ class TestSimpleBreakpoint:
         bp = SimpleBreakpoint()
 
         # Use specific geohash
-        geohash_id = 'b7g4rf3n3x43'
+        geohash_id = "b7g4rf3n3x43"
 
         result = bp.calculate_break(dataset, geohash_id)
 
@@ -40,7 +40,7 @@ class TestSimpleBreakpoint:
         bp = SimpleBreakpoint()
 
         # Use specific geohash
-        geohash_id = 'b7g4rf3n3x43'
+        geohash_id = "b7g4rf3n3x43"
 
         result = bp.calculate_break(dataset, geohash_id)
 
@@ -68,7 +68,7 @@ class TestBeastBreakpoint:
         bp = BeastBreakpoint()
 
         # Use specific geohash
-        geohash_id = 'b7g4rf3n3x43'
+        geohash_id = "b7g4rf3n3x43"
 
         result = bp.calculate_break(dataset, geohash_id)
 
@@ -92,7 +92,7 @@ class TestBeastBreakpoint:
         bp = BeastBreakpoint()
 
         # Use specific geohash
-        geohash_id = 'b7g4rf3n3x43'
+        geohash_id = "b7g4rf3n3x43"
 
         result = bp.calculate_break(dataset, geohash_id)
 
@@ -117,7 +117,7 @@ class TestBreakpointComparison:
     def test_methods_produce_different_outputs(self, dw_test_dataset):
         """Test that Simple and Beast methods produce different output structures."""
         dataset = DWDataset(dw_test_dataset)
-        geohash_id = 'b7g4rf3n3x43'
+        geohash_id = "b7g4rf3n3x43"
 
         simple_bp = SimpleBreakpoint()
         beast_bp = BeastBreakpoint()
