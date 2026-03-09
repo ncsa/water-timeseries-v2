@@ -2,18 +2,26 @@
 
 ## Installation
 
-Install the package using pip:
-
-```bash
-pip install water-timeseries
-```
-
-Or if you're developing locally:
+For development with all testing and documentation tools:
 
 ```bash
 git clone https://github.com/PermafrostDiscoveryGateway/water-timeseries-v2
 cd water-timeseries-v2
 pip install -e ".[dev]"
+```
+
+Or with uv:
+
+```bash
+git clone https://github.com/PermafrostDiscoveryGateway/water-timeseries-v2
+cd water-timeseries-v2
+uv sync
+```
+
+For installing just the runtime dependencies:
+
+```bash
+pip install .
 ```
 
 ## Quick Example
