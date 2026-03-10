@@ -41,6 +41,26 @@ def process_chunk_remote(chunk: xr.Dataset, water_dataset_type: str) -> pd.DataF
 
 
 class BreakpointPipeline:
+    """Pipeline for running Rbeast break detection on water dataset time series.
+
+    The pipeline handles loading data from zarr or parquet, optional bounding box
+    filtering, chunking the dataset, and running break detection either sequentially
+    or in parallel using Ray.
+
+    Args:
+        water_dataset_file: Path to water dataset (zarr or parquet format).
+        output_file: Path to output parquet file for results.
+        vector_dataset_file: Optional path to vector dataset (gpkg, shp, geojson).
+        chunksize: Number of IDs per chunk (default: 100).
+        n_jobs: Number of parallel jobs for Ray (default: 1, sequential).
+        min_chunksize: Minimum chunk size (default: 10).
+        bbox_west: Minimum longitude for bbox filter.
+        bbox_south: Minimum latitude for bbox filter.
+        bbox_east: Maximum longitude for bbox filter.
+        bbox_north: Maximum latitude for bbox filter.
+        logger: Optional logger instance.
+    """
+
     def __init__(
         self,
         water_dataset_file: str,
@@ -92,13 +112,18 @@ class BreakpointPipeline:
 
         self.chunked_ds = self.chunk_dataset()
 
-    def load_water_data(self):
-        # load data
+    def load_water_data(self) -> xr.Dataset:
+        """Load water dataset from zarr file.
+
+        Returns:
+            xarray Dataset with water time series data.
+        """
         ds = xr.open_zarr(self.water_dataset_file)
         self.process_ids = ds.id_geohash.values
         return ds
 
     def save_to_parquet(self):
+        """Save break detection results to parquet file."""
         output_file = Path(self.output_file)
         self.breaks.to_parquet(output_file)
 
@@ -207,11 +232,11 @@ class BreakpointPipeline:
     def chunk_dataset(self) -> list[xr.Dataset]:
         """Split xarray dataset into chunks along id_geohash dimension.
 
-        Uses chunksize to determine chunk size. The number of chunks (n_chunks)
-        is calculated based on the total number of IDs and the chunksize.
+        Uses chunksize to determine the size of each chunk. The total number
+        of chunks is calculated automatically based on the dataset size.
 
         Returns:
-            List of xarray Datasets
+            List of xarray Datasets, one per chunk.
         """
         n_ids = len(self.input_ds.id_geohash)
 
@@ -249,9 +274,14 @@ class BreakpointPipeline:
         return chunks
 
     def run_breaks(self):
+        """Run break detection on chunked dataset.
+
+        Processes the dataset either sequentially or in parallel using Ray,
+        depending on the n_jobs setting. Shows progress with rich progress bar.
+        """
         # Determine processing mode based on n_jobs
         use_parallel = self.n_jobs > 1
-        
+
         # Initialize Ray if using parallel processing
         if use_parallel:
             if not ray.is_initialized():
@@ -261,7 +291,7 @@ class BreakpointPipeline:
                 env_vars.pop("VIRTUAL_ENV", None)
                 # Also set UV_LINK_MODE to avoid hardlink issues
                 env_vars["UV_LINK_MODE"] = "copy"
-                
+
                 ray.init(
                     ignore_reinit_error=True,
                     num_cpus=self.n_jobs,
