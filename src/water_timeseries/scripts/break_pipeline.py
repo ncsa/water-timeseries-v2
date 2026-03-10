@@ -41,11 +41,11 @@ def load_config(config_path: Optional[Path]) -> dict:
 
 def merge_config_with_args(config: dict, **kwargs) -> dict:
     """Merge config with CLI args, CLI args take priority.
-    
+
     Args:
         config: Configuration dictionary from config file.
         **kwargs: CLI arguments (None values are ignored).
-        
+
     Returns:
         Merged dictionary with CLI args taking priority.
     """
