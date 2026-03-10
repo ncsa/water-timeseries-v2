@@ -1,4 +1,5 @@
 # imports
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -46,6 +47,8 @@ class BreakpointPipeline:
         output_file: str,
         vector_dataset_file: Optional[str] = None,
         n_chunks: int = 1,
+        chunksize: int = 100,
+        n_jobs: int = 1,
         logger: Optional[logger] = None,
         min_chunksize: int = 10,
         bbox_west: Optional[float] = None,
@@ -57,6 +60,8 @@ class BreakpointPipeline:
         self.output_file = output_file
         self.vector_dataset_file = vector_dataset_file
         self.n_chunks = n_chunks
+        self.chunksize = chunksize
+        self.n_jobs = n_jobs
         self.min_chunksize = min_chunksize
         self.bbox_west = bbox_west
         self.bbox_south = bbox_south
@@ -71,7 +76,9 @@ class BreakpointPipeline:
                 f"Initialized BreakpointPipeline with \n"
                 f"water dataset: {self.water_dataset_file} \n"
                 f"output file: {self.output_file} \n"
-                f"n_chunks: {self.n_chunks}"
+                f"n_chunks: {self.n_chunks} \n"
+                f"chunksize: {self.chunksize} \n"
+                f"n_jobs: {self.n_jobs}"
             )
 
         self.input_ds = self.load_water_data()
@@ -198,31 +205,30 @@ class BreakpointPipeline:
         return self.input_ds
 
     def chunk_dataset(self) -> list[xr.Dataset]:
-        """Split xarray dataset into n chunks along id_geohash dimension.
+        """Split xarray dataset into chunks along id_geohash dimension.
 
-        Args:
-            ds: xarray Dataset with id_geohash dimension
-            n_chunks: Number of chunks to create
+        Uses chunksize to determine chunk size. The number of chunks (n_chunks)
+        is calculated based on the total number of IDs and the chunksize.
 
         Returns:
             List of xarray Datasets
         """
-
         n_ids = len(self.input_ds.id_geohash)
 
-        # Check if n_ids is smaller than min_chunksize
-        if n_ids < self.min_chunksize:
+        # Check if n_ids is smaller than chunksize
+        if n_ids <= self.chunksize:
             # Create only one chunk containing all data
             self.n_chunks = 1
             chunk = self.input_ds.isel(id_geohash=slice(0, n_ids))
             if self.logger:
                 self.logger.info(
-                    f"Dataset has only {n_ids} ids (less than min_chunksize={self.min_chunksize}). Creating single chunk."
+                    f"Dataset has only {n_ids} ids (less than or equal to chunksize={self.chunksize}). Creating single chunk."
                 )
             return [chunk]
 
-        # Proceed with normal chunking
-        chunk_size = max(self.min_chunksize, n_ids // self.n_chunks)
+        # Calculate number of chunks based on chunksize
+        self.n_chunks = max(1, (n_ids + self.chunksize - 1) // self.chunksize)
+        chunk_size = self.chunksize
         chunks = []
 
         for i in range(self.n_chunks):
@@ -243,15 +249,29 @@ class BreakpointPipeline:
         return chunks
 
     def run_breaks(self):
+        # Determine processing mode based on n_jobs
+        use_parallel = self.n_jobs > 1
+        
         # Initialize Ray if using parallel processing
-        if self.n_chunks > 1:
+        if use_parallel:
             if not ray.is_initialized():
-                ray.init(ignore_reinit_error=True)
+                # Copy environment and remove VIRTUAL_ENV to avoid the warning
+                env_vars = os.environ.copy()
+                # Remove VIRTUAL_ENV to let Ray create its own environment
+                env_vars.pop("VIRTUAL_ENV", None)
+                # Also set UV_LINK_MODE to avoid hardlink issues
+                env_vars["UV_LINK_MODE"] = "copy"
+                
+                ray.init(
+                    ignore_reinit_error=True,
+                    num_cpus=self.n_jobs,
+                    runtime_env={"env_vars": env_vars},
+                )
             if self.logger:
-                self.logger.info(f"Starting parallel processing with Ray using {self.n_chunks} chunks")
+                self.logger.info(f"Starting parallel processing with Ray using {self.n_jobs} jobs")
         else:
             if self.logger:
-                self.logger.info("Starting sequential processing (n_chunks=1)")
+                self.logger.info("Starting sequential processing (n_jobs=1)")
 
         # load data
         break_list = []
@@ -266,7 +286,7 @@ class BreakpointPipeline:
         ) as progress:
             task = progress.add_task("[cyan]Processing chunks...", total=len(self.chunked_ds))
 
-            if self.n_chunks > 1:
+            if use_parallel:
                 # Parallel processing with Ray
                 # Submit all tasks
                 futures = [process_chunk_remote.remote(chunk, self.water_dataset_type) for chunk in self.chunked_ds]
@@ -287,6 +307,8 @@ class BreakpointPipeline:
                     progress.advance(task)
 
         self.breaks = pd.concat(break_list, axis=0)
+        if self.logger:
+            self.logger.info(f"Processed {len(self.breaks)} breakpoints")
 
 
 @app.command()
@@ -298,7 +320,8 @@ def main(
     vector_dataset_file: str = typer.Option(
         None, "--vector-dataset-file", "-v", help="Path to vector dataset file (gpkg, shp, geojson)"
     ),
-    n_chunks: int = typer.Option(1, "--n-chunks", "-n", help="Number of chunks for parallel processing"),
+    chunksize: int = typer.Option(100, "--chunksize", "-c", help="Number of IDs per chunk"),
+    n_jobs: int = typer.Option(1, "--n-jobs", "-j", help="Number of parallel jobs (use >1 for Ray parallelization)"),
     min_chunksize: int = typer.Option(10, "--min-chunksize", "-m", help="Minimum chunk size"),
     bbox_west: float = typer.Option(-180, "--bbox-west", help="Minimum longitude (west) in degrees"),
     bbox_south: float = typer.Option(-90, "--bbox-south", help="Minimum latitude (south) in degrees"),
@@ -309,8 +332,8 @@ def main(
 
     Example usage:
         uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet
-        uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet --n-chunks 10
-        uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet -n 10 -m 5
+        uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet --chunksize 50
+        uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet -c 50 -j 4
     """
     # Validate required arguments
     if water_dataset_file is None or output_file is None:
@@ -324,7 +347,8 @@ def main(
         water_dataset_file=water_dataset_file,
         output_file=output_file,
         vector_dataset_file=vector_dataset_file,
-        n_chunks=n_chunks,
+        chunksize=chunksize,
+        n_jobs=n_jobs,
         min_chunksize=min_chunksize,
         bbox_west=bbox_west,
         bbox_south=bbox_south,

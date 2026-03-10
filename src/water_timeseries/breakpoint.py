@@ -21,6 +21,7 @@ class BreakpointMethod:
         # Batch processing of breakpoints for all objects in the dataset
         # dataset.ds_normalized.load()
         dataset.ds.load()
+        dataset.ds_normalized.load()
         results = []
         if progress_bar:
             progress = tqdm(dataset.ds_normalized.id_geohash.values)
