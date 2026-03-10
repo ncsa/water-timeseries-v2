@@ -1,4 +1,5 @@
 # imports
+import json
 import os
 from pathlib import Path
 from typing import Optional
@@ -8,11 +9,34 @@ import pandas as pd
 import ray
 import typer
 import xarray as xr
+import yaml
 from loguru import logger
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRemainingColumn
 
 from water_timeseries.breakpoint import BeastBreakpoint
 from water_timeseries.dataset import DWDataset, JRCDataset
+
+
+def load_config(config_path: Optional[Path]) -> dict:
+    """Load configuration from YAML or JSON file.
+    
+    Args:
+        config_path: Path to config file.
+        
+    Returns:
+        Dictionary with configuration values.
+    """
+    if not config_path or not config_path.exists():
+        return {}
+    try:
+        with open(config_path) as f:
+            if config_path.suffix in (".yaml", ".yml"):
+                return yaml.safe_load(f) or {}
+            elif config_path.suffix == ".json":
+                return json.load(f)
+    except Exception as e:
+        logger.warning(f"Failed to load config file {config_path}: {e}")
+    return {}
 
 # configure logger: writes to rbeast_batch.log in current working dir
 _log_file = Path.cwd() / "rbeast_batch.log"
@@ -343,6 +367,9 @@ class BreakpointPipeline:
 
 @app.command()
 def main(
+    config_file: Path = typer.Option(
+        None, "--config", "-C", help="Path to config YAML/JSON file"
+    ),
     water_dataset_file: str = typer.Option(
         None, "--water-dataset-file", help="Path to water dataset file (zarr or parquet format)"
     ),
@@ -364,7 +391,23 @@ def main(
         uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet
         uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet --chunksize 50
         uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet -c 50 -j 4
+        uv run water-timeseries-bp -C config.yaml
     """
+    # Load config file if provided
+    config_dict = load_config(config_file) if config_file else {}
+    
+    # Get values from config, with CLI args taking priority
+    water_dataset_file = water_dataset_file or config_dict.get("water_dataset_file")
+    output_file = output_file or config_dict.get("output_file")
+    vector_dataset_file = vector_dataset_file or config_dict.get("vector_dataset_file")
+    chunksize = chunksize if chunksize != 100 else config_dict.get("chunksize", chunksize)
+    n_jobs = n_jobs if n_jobs != 1 else config_dict.get("n_jobs", n_jobs)
+    min_chunksize = min_chunksize if min_chunksize != 10 else config_dict.get("min_chunksize", min_chunksize)
+    bbox_west = bbox_west if bbox_west != -180 else config_dict.get("bbox_west", bbox_west)
+    bbox_south = bbox_south if bbox_south != -90 else config_dict.get("bbox_south", bbox_south)
+    bbox_east = bbox_east if bbox_east != 180 else config_dict.get("bbox_east", bbox_east)
+    bbox_north = bbox_north if bbox_north != 90 else config_dict.get("bbox_north", bbox_north)
+
     # Validate required arguments
     if water_dataset_file is None or output_file is None:
         typer.echo(
