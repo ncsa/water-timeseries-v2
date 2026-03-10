@@ -19,10 +19,10 @@ from water_timeseries.dataset import DWDataset, JRCDataset
 
 def load_config(config_path: Optional[Path]) -> dict:
     """Load configuration from YAML or JSON file.
-    
+
     Args:
         config_path: Path to config file.
-        
+
     Returns:
         Dictionary with configuration values.
     """
@@ -37,6 +37,7 @@ def load_config(config_path: Optional[Path]) -> dict:
     except Exception as e:
         logger.warning(f"Failed to load config file {config_path}: {e}")
     return {}
+
 
 # configure logger: writes to rbeast_batch.log in current working dir
 _log_file = Path.cwd() / "rbeast_batch.log"
@@ -367,9 +368,7 @@ class BreakpointPipeline:
 
 @app.command()
 def main(
-    config_file: Path = typer.Option(
-        None, "--config", "-C", help="Path to config YAML/JSON file"
-    ),
+    config_file: Path = typer.Option(None, "--config", "-C", help="Path to config YAML/JSON file"),
     water_dataset_file: str = typer.Option(
         None, "--water-dataset-file", help="Path to water dataset file (zarr or parquet format)"
     ),
@@ -395,7 +394,7 @@ def main(
     """
     # Load config file if provided
     config_dict = load_config(config_file) if config_file else {}
-    
+
     # Get values from config, with CLI args taking priority
     water_dataset_file = water_dataset_file or config_dict.get("water_dataset_file")
     output_file = output_file or config_dict.get("output_file")
