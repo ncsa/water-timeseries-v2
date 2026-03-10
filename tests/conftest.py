@@ -35,6 +35,30 @@ def jrc_test_dataset():
 
 
 @pytest.fixture
+def test_data_dir():
+    """Return path to test data directory."""
+    return Path(__file__).parent / "data"
+
+
+@pytest.fixture
+def dw_test_zarr_path(test_data_dir):
+    """Return path to Dynamic World test zarr dataset as string.
+    
+    Use this for testing BreakpointPipeline which uses xr.open_zarr().
+    """
+    return str(test_data_dir / "lakes_dw_test.zarr")
+
+
+@pytest.fixture
+def jrc_test_zarr_path(test_data_dir):
+    """Return path to JRC test zarr dataset as string.
+    
+    Use this for testing BreakpointPipeline which uses xr.open_zarr().
+    """
+    return str(test_data_dir / "lakes_jrc_test.zarr")
+
+
+@pytest.fixture
 def synthetic_dw_dataset_with_break():
     """Create synthetic DW dataset with a known breakpoint pattern.
 
