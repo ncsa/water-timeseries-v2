@@ -1,5 +1,6 @@
 # imports
 # imports
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -234,19 +235,31 @@ class BreakpointPipeline:
 
 @app.command()
 def main(
-    water_dataset_file: str = None,
-    output_file: str = None,
-    vector_dataset_file: str = None,
+    water_dataset_file: str = typer.Argument(None, help="Path to water dataset file (zarr or parquet format)"),
+    output_file: str = typer.Argument(None, help="Path to output parquet file"),
+    vector_dataset_file: str = typer.Option(None, "--vector-dataset-file", "-v", help="Path to vector dataset file (gpkg, shp, geojson)"),
+    n_chunks: int = typer.Option(1, "--n-chunks", "-n", help="Number of chunks for parallel processing"),
+    min_chunksize: int = typer.Option(10, "--min-chunksize", "-m", help="Minimum chunk size"),
 ):
-    """
+    """Run Rbeast break detection on water dataset.
+    
     Example usage:
+        uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet
+        uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet --n-chunks 10
+        uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet -n 10 -m 5
     """
-    # Example usage
+    # Validate required arguments
+    if water_dataset_file is None or output_file is None:
+        typer.echo("Error: water-dataset-file and output-file are required. Use --help for usage information.", err=True)
+        raise typer.Exit(code=1)
+    
+    # Run the pipeline
     pipeline = BreakpointPipeline(
         water_dataset_file=water_dataset_file,
         output_file=output_file,
         vector_dataset_file=vector_dataset_file,
-        n_chunks=10,
+        n_chunks=n_chunks,
+        min_chunksize=min_chunksize,
         logger=logger,
     )
     pipeline.run_breaks()
