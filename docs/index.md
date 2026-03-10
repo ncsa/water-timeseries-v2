@@ -56,19 +56,22 @@ pip install -e ".[dev]"
 
 ## Command Line Interface
 
-The package provides a CLI tool `water-timeseries-bp` for running breakpoint detection on water datasets.
+The package provides a hierarchical CLI tool `water-timeseries` for running breakpoint detection on water datasets.
 
 ### Quick Start
 
 ```bash
 # Show help
-uv run water-timeseries-bp --help
+uv run water-timeseries --help
+
+# Show breakpoint-analysis subcommand help
+uv run water-timeseries breakpoint-analysis --help
 
 # Run with required arguments
-uv run water-timeseries-bp --water-dataset-file data.zarr --output-file output.parquet
+uv run water-timeseries breakpoint-analysis data.zarr output.parquet
 
 # Run with config file
-uv run water-timeseries-bp -C configs/config.yaml
+uv run water-timeseries breakpoint-analysis --config-file configs/config.yaml
 ```
 
 ### Configuration File

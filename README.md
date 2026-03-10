@@ -46,7 +46,7 @@ water_extent = processor.ds_normalized["water"]
 
 ### Command Line Interface
 
-The package provides a CLI tool `water-timeseries-bp` for running breakpoint detection on water datasets.
+The package provides a hierarchical CLI tool `water-timeseries` for running breakpoint detection on water datasets.
 
 #### Installation
 
@@ -62,15 +62,18 @@ pip install .
 
 ```bash
 # Show help
-uv run water-timeseries-bp --help
+uv run water-timeseries --help
+
+# Show breakpoint-analysis subcommand help
+uv run water-timeseries breakpoint-analysis --help
 
 # Run with required arguments
-uv run water-timeseries-bp --water-dataset-file data.zarr --output-file output.parquet
+uv run water-timeseries breakpoint-analysis data.zarr output.parquet
 
 # Run with optional parameters
-uv run water-timeseries-bp \
-    --water-dataset-file data.zarr \
-    --output-file output.parquet \
+uv run water-timeseries breakpoint-analysis \
+    data.zarr \
+    output.parquet \
     --chunksize 100 \
     --n-jobs 4
 ```
@@ -80,7 +83,7 @@ uv run water-timeseries-bp \
 You can also use a YAML configuration file:
 
 ```bash
-uv run water-timeseries-bp -C configs/config.yaml
+uv run water-timeseries breakpoint-analysis --config-file configs/config.yaml
 ```
 
 Example config file:
@@ -109,17 +112,19 @@ min_chunksize: 10
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|--------|
-| `--water-dataset-file` | | Path to water dataset (zarr or parquet) | Required |
-| `--output-file` | | Path to output parquet file | Required |
+| `water_dataset_file` | | Path to water dataset (zarr or parquet) | Required* |
+| `output_file` | | Path to output parquet file | Required* |
+| `--config-file` | | Path to config YAML/JSON file | None |
 | `--vector-dataset-file` | `-v` | Path to vector dataset (gpkg, shp, geojson) | None |
-| `--config` | `-C` | Path to config YAML/JSON file | None |
 | `--chunksize` | `-c` | Number of IDs per chunk | 100 |
 | `--n-jobs` | `-j` | Number of parallel jobs (>1 for Ray) | 1 |
 | `--min-chunksize` | `-m` | Minimum chunk size | 10 |
-| `--bbox-west` | | Minimum longitude (west) | -180 |
-| `--bbox-south` | | Minimum latitude (south) | -90 |
-| `--bbox-east` | | Maximum longitude (east) | 180 |
-| `--bbox-north` | | Maximum latitude (north) | 90 |
+| `--bbox-west` | | Minimum longitude (west) | None |
+| `--bbox-south` | | Minimum latitude (south) | None |
+| `--bbox-east` | | Maximum longitude (east) | None |
+| `--bbox-north` | | Maximum latitude (north) | None |
+
+*Can also be provided via config file
 
 ## Installation
 

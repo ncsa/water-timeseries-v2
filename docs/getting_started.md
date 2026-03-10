@@ -45,7 +45,7 @@ preprocessed_ds = dataset.ds
 
 ## Command Line Interface
 
-The package includes a CLI tool `water-timeseries-bp` for running breakpoint detection from the command line.
+The package includes a hierarchical CLI tool `water-timeseries` for running breakpoint detection from the command line.
 
 ### Installation
 
@@ -59,20 +59,23 @@ uv sync
 
 ```bash
 # Show all options
-uv run water-timeseries-bp --help
+uv run water-timeseries --help
+
+# Show breakpoint-analysis subcommand help
+uv run water-timeseries breakpoint-analysis --help
 
 # Run with required arguments
-uv run water-timeseries-bp --water-dataset-file data.zarr --output-file output.parquet
+uv run water-timeseries breakpoint-analysis data.zarr output.parquet
 
 # Run with optional parameters
-uv run water-timeseries-bp \
-    --water-dataset-file data.zarr \
-    --output-file output.parquet \
+uv run water-timeseries breakpoint-analysis \
+    data.zarr \
+    output.parquet \
     --chunksize 100 \
     --n-jobs 4
 
 # Run with a config file
-uv run water-timeseries-bp -C configs/config.yaml
+uv run water-timeseries breakpoint-analysis --config-file configs/config.yaml
 ```
 
 ### Using a Config File

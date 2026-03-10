@@ -113,27 +113,27 @@ all_breaks = simple_bp.calculate_breaks_batch(processor, progress_bar=True)
 
 ## Command Line Interface
 
-The CLI tool provides a convenient way to run breakpoint detection without writing Python code.
+The hierarchical CLI tool provides a convenient way to run breakpoint detection without writing Python code.
 
 ### Running from Command Line
 
 ```bash
 # Basic usage with required arguments
-uv run water-timeseries-bp \
-    --water-dataset-file /path/to/lakes.zarr \
-    --output-file /path/to/breaks.parquet
+uv run water-timeseries breakpoint-analysis \
+    /path/to/lakes.zarr \
+    /path/to/breaks.parquet
 
 # With parallel processing
-uv run water-timeseries-bp \
-    --water-dataset-file /path/to/lakes.zarr \
-    --output-file /path/to/breaks.parquet \
+uv run water-timeseries breakpoint-analysis \
+    /path/to/lakes.zarr \
+    /path/to/breaks.parquet \
     --chunksize 100 \
     --n-jobs 20
 
 # With bounding box filter
-uv run water-timeseries-bp \
-    --water-dataset-file /path/to/lakes.zarr \
-    --output-file /path/to/breaks.parquet \
+uv run water-timeseries breakpoint-analysis \
+    /path/to/lakes.zarr \
+    /path/to/breaks.parquet \
     --vector-dataset-file /path/to/lakes.gpkg \
     --bbox-west -160 \
     --bbox-east -155 \
@@ -161,24 +161,26 @@ min_chunksize: 10
 
 ```bash
 # Run with config file
-uv run water-timeseries-bp -C config.yaml
+uv run water-timeseries breakpoint-analysis --config-file config.yaml
 
 # Override specific config values from CLI
-uv run water-timeseries-bp -C config.yaml --n-jobs 8
+uv run water-timeseries breakpoint-analysis --config-file config.yaml --n-jobs 8
 ```
 
 ### CLI Options Reference
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|--------|
-| `--water-dataset-file` | | Path to water dataset (zarr) | Required |
-| `--output-file` | | Path to output parquet | Required |
+| `water_dataset_file` | | Path to water dataset (zarr) | Required* |
+| `output_file` | | Path to output parquet | Required* |
+| `--config-file` | | Path to config file | None |
 | `--vector-dataset-file` | `-v` | Path to vector dataset | None |
-| `--config` | `-C` | Path to config file | None |
 | `--chunksize` | `-c` | IDs per chunk | 100 |
 | `--n-jobs` | `-j` | Parallel jobs | 1 |
 | `--min-chunksize` | `-m` | Min chunk size | 10 |
-| `--bbox-west` | | Min longitude | -180 |
-| `--bbox-south` | | Min latitude | -90 |
-| `--bbox-east` | | Max longitude | 180 |
-| `--bbox-north` | | Max latitude | 90 |
+| `--bbox-west` | | Min longitude | None |
+| `--bbox-south` | | Min latitude | None |
+| `--bbox-east` | | Max longitude | None |
+| `--bbox-north` | | Max latitude | None |
+
+*Can also be provided via config file
