@@ -1,6 +1,4 @@
 # imports
-# imports
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -28,7 +26,7 @@ app = typer.Typer(help="Run Rbeast break detection on Dynamic World lakes")
 
 
 @ray.remote
-def process_chunk_remote(chunk, water_dataset_type):
+def process_chunk_remote(chunk: xr.Dataset, water_dataset_type: str) -> pd.DataFrame:
     """Ray remote function to process a single chunk."""
     if water_dataset_type == "dynamic_world":
         ds = DWDataset(chunk)
@@ -44,34 +42,54 @@ def process_chunk_remote(chunk, water_dataset_type):
 class BreakpointPipeline:
     def __init__(
         self,
-        # lake_vector_file: str,
         water_dataset_file: str,
         output_file: str,
         vector_dataset_file: Optional[str] = None,
-        n_chunks: Optional[int] = 1,
+        n_chunks: int = 1,
         logger: Optional[logger] = None,
         min_chunksize: int = 10,
+        bbox_west: Optional[float] = None,
+        bbox_south: Optional[float] = None,
+        bbox_east: Optional[float] = None,
+        bbox_north: Optional[float] = None,
     ):
         self.water_dataset_file = water_dataset_file
         self.output_file = output_file
         self.vector_dataset_file = vector_dataset_file
         self.n_chunks = n_chunks
         self.min_chunksize = min_chunksize
+        self.bbox_west = bbox_west
+        self.bbox_south = bbox_south
+        self.bbox_east = bbox_east
+        self.bbox_north = bbox_north
         self.logger = logger
+        self.process_ids = None
+        self.breaks = None
+
         if logger:
             self.logger.info(
-                f"Initialized BreakpointPipeline with \nwater dataset: {self.water_dataset_file} \noutput file: {self.output_file} \nn_chunks: {self.n_chunks}"
+                f"Initialized BreakpointPipeline with \n"
+                f"water dataset: {self.water_dataset_file} \n"
+                f"output file: {self.output_file} \n"
+                f"n_chunks: {self.n_chunks}"
             )
+
         self.input_ds = self.load_water_data()
         self.get_water_dataset_type()
         self.has_vector_dataset = False
         self.gdf = self.load_vector_data()
 
+        # Apply bbox filter if provided
+        if any(v is not None for v in [bbox_west, bbox_south, bbox_east, bbox_north]):
+            self.input_ds = self.apply_bbox_filter()
+
         self.chunked_ds = self.chunk_dataset()
 
     def load_water_data(self):
         # load data
-        return xr.open_zarr(self.water_dataset_file)
+        ds = xr.open_zarr(self.water_dataset_file)
+        self.process_ids = ds.id_geohash.values
+        return ds
 
     def save_to_parquet(self):
         output_file = Path(self.output_file)
@@ -96,7 +114,7 @@ class BreakpointPipeline:
         if self.vector_dataset_file is not None:
             vector_path = Path(self.vector_dataset_file)
             suffix = vector_path.suffix.lower()
-            
+
             if self.logger:
                 self.logger.info(f"Loading vector dataset from {self.vector_dataset_file}")
 
@@ -117,28 +135,67 @@ class BreakpointPipeline:
             return None
 
     #  optionally restrict to lakes whose centroids fall inside the provided bbox
-    def bbox_filter(
-        gdf: gpd.GeoDataFrame,
-        bbox_west: float = None,
-        bbox_east: float = None,
-        bbox_south: float = None,
-        bbox_north: float = None,
-    ) -> gpd.GeoDataFrame:
-        if any(v is not None for v in (bbox_west, bbox_east, bbox_south, bbox_north)):
-            cent = gdf.geometry.centroid
-            mask = True
-            if bbox_west is not None:
-                mask &= cent.x >= bbox_west
-            if bbox_east is not None:
-                mask &= cent.x <= bbox_east
-            if bbox_south is not None:
-                mask &= cent.y >= bbox_south
-            if bbox_north is not None:
-                mask &= cent.y <= bbox_north
-            filtered = gdf[mask]
+    def apply_bbox_filter(self) -> xr.Dataset:
+        """Apply bounding box filter to the dataset.
+
+        Filters the dataset based on the provided bounding box coordinates.
+        Uses the vector dataset geometry if available, otherwise returns the full dataset.
+        """
+        if self.logger:
+            self.logger.info(
+                f"Applying bbox filter: west={self.bbox_west}, south={self.bbox_south}, "
+                f"east={self.bbox_east}, north={self.bbox_north}"
+            )
+
+        # Check if we have a vector dataset with geometry to filter by
+        if self.gdf is not None and self.has_vector_dataset_:
+            gdf = self.gdf
+
+            # Find overlapping IDs between gdf and ds
+            overlap_ids = (
+                gdf[["id_geohash"]]
+                .set_index("id_geohash")
+                .join(self.input_ds.coords["id_geohash"].to_dataframe(), how="inner")["id_geohash"]
+                .tolist()
+            )
+
+            # Apply bbox filter on the geodataframe
+            if any(v is not None for v in (self.bbox_west, self.bbox_east, self.bbox_south, self.bbox_north)):
+                cent = gdf.geometry.centroid
+                mask = True
+                if self.bbox_west is not None:
+                    mask &= cent.x >= self.bbox_west
+                if self.bbox_east is not None:
+                    mask &= cent.x <= self.bbox_east
+                if self.bbox_south is not None:
+                    mask &= cent.y >= self.bbox_south
+                if self.bbox_north is not None:
+                    mask &= cent.y <= self.bbox_north
+                filtered_gdf = gdf[mask]
+
+                # Get overlapping IDs after bbox filter
+                filtered_overlap_ids = (
+                    filtered_gdf[["id_geohash"]]
+                    .set_index("id_geohash")
+                    .join(self.input_ds.coords["id_geohash"].to_dataframe(), how="inner")["id_geohash"]
+                    .tolist()
+                )
+                geohash_ids = filtered_overlap_ids
+            else:
+                geohash_ids = overlap_ids
+
+            # Filter the xarray dataset
+            self.input_ds = self.input_ds.sel(id_geohash=geohash_ids)
+            self.process_ids = geohash_ids
+
+            if self.logger:
+                self.logger.info(f"Filtered dataset to {len(geohash_ids)} geohashes")
         else:
-            filtered = gdf
-        return filtered
+            # No vector dataset available - log warning
+            if self.logger:
+                self.logger.warning("BBox filtering requires vector dataset with geometries - skipping filter")
+
+        return self.input_ds
 
     def chunk_dataset(self) -> list[xr.Dataset]:
         """Split xarray dataset into n chunks along id_geohash dimension.
@@ -230,19 +287,26 @@ class BreakpointPipeline:
                     progress.advance(task)
 
         self.breaks = pd.concat(break_list, axis=0)
-        print(self.breaks)
 
 
 @app.command()
 def main(
-    water_dataset_file: str = typer.Argument(None, help="Path to water dataset file (zarr or parquet format)"),
-    output_file: str = typer.Argument(None, help="Path to output parquet file"),
-    vector_dataset_file: str = typer.Option(None, "--vector-dataset-file", "-v", help="Path to vector dataset file (gpkg, shp, geojson)"),
+    water_dataset_file: str = typer.Option(
+        None, "--water-dataset-file", help="Path to water dataset file (zarr or parquet format)"
+    ),
+    output_file: str = typer.Option(None, "--output-file", help="Path to output parquet file"),
+    vector_dataset_file: str = typer.Option(
+        None, "--vector-dataset-file", "-v", help="Path to vector dataset file (gpkg, shp, geojson)"
+    ),
     n_chunks: int = typer.Option(1, "--n-chunks", "-n", help="Number of chunks for parallel processing"),
     min_chunksize: int = typer.Option(10, "--min-chunksize", "-m", help="Minimum chunk size"),
+    bbox_west: float = typer.Option(-180, "--bbox-west", help="Minimum longitude (west) in degrees"),
+    bbox_south: float = typer.Option(-90, "--bbox-south", help="Minimum latitude (south) in degrees"),
+    bbox_east: float = typer.Option(180, "--bbox-east", help="Maximum longitude (east) in degrees"),
+    bbox_north: float = typer.Option(90, "--bbox-north", help="Maximum latitude (north) in degrees"),
 ):
     """Run Rbeast break detection on water dataset.
-    
+
     Example usage:
         uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet
         uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet --n-chunks 10
@@ -250,9 +314,11 @@ def main(
     """
     # Validate required arguments
     if water_dataset_file is None or output_file is None:
-        typer.echo("Error: water-dataset-file and output-file are required. Use --help for usage information.", err=True)
+        typer.echo(
+            "Error: water-dataset-file and output-file are required. Use --help for usage information.", err=True
+        )
         raise typer.Exit(code=1)
-    
+
     # Run the pipeline
     pipeline = BreakpointPipeline(
         water_dataset_file=water_dataset_file,
@@ -260,6 +326,10 @@ def main(
         vector_dataset_file=vector_dataset_file,
         n_chunks=n_chunks,
         min_chunksize=min_chunksize,
+        bbox_west=bbox_west,
+        bbox_south=bbox_south,
+        bbox_east=bbox_east,
+        bbox_north=bbox_north,
         logger=logger,
     )
     pipeline.run_breaks()
