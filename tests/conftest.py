@@ -43,7 +43,7 @@ def test_data_dir():
 @pytest.fixture
 def dw_test_zarr_path(test_data_dir):
     """Return path to Dynamic World test zarr dataset as string.
-    
+
     Use this for testing BreakpointPipeline which uses xr.open_zarr().
     """
     return str(test_data_dir / "lakes_dw_test.zarr")
@@ -52,7 +52,7 @@ def dw_test_zarr_path(test_data_dir):
 @pytest.fixture
 def jrc_test_zarr_path(test_data_dir):
     """Return path to JRC test zarr dataset as string.
-    
+
     Use this for testing BreakpointPipeline which uses xr.open_zarr().
     """
     return str(test_data_dir / "lakes_jrc_test.zarr")
@@ -251,20 +251,20 @@ def synthetic_dw_dataset_large():
 @pytest.fixture
 def synthetic_dw_dataset_large_zarr(synthetic_dw_dataset_large):
     """Create a temporary zarr file from synthetic_dw_dataset_large for testing BreakpointPipeline.
-    
+
     Returns the path to the temporary zarr file. Cleanup is handled automatically.
     """
     import shutil
     import tempfile
-    
+
     # Create a temporary directory
     temp_dir = tempfile.mkdtemp()
     zarr_path = Path(temp_dir) / "synthetic_dw_large.zarr"
-    
+
     # Save dataset to zarr
     synthetic_dw_dataset_large.to_zarr(zarr_path, mode="w")
-    
+
     yield str(zarr_path)
-    
+
     # Cleanup
     shutil.rmtree(temp_dir, ignore_errors=True)
