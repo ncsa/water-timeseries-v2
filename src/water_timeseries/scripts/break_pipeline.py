@@ -138,7 +138,6 @@ class BreakpointPipeline:
         self.output_geometry = output_geometry
         self.output_geometry_all = output_geometry_all
 
-
         if logger:
             self.logger.info(
                 f"Initialized BreakpointPipeline with: "

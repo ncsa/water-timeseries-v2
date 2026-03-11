@@ -81,7 +81,7 @@ def breakpoint_analysis(
         bbox_east=bbox_east,
         bbox_north=bbox_north,
         output_geometry=output_geometry,
-        output_geometry_all=output_geometry_all
+        output_geometry_all=output_geometry_all,
     )
 
     # Get water_dataset_file and output_file from merged config
