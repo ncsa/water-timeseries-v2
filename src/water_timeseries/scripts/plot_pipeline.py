@@ -1,8 +1,9 @@
 # imports
 import matplotlib
+
 # Try to use interactive backend for popup windows
 try:
-    matplotlib.use('TkAgg')
+    matplotlib.use("TkAgg")
 except:
     pass  # Fall back to default if TkAgg not available
 from pathlib import Path
@@ -41,7 +42,7 @@ def main(
     """Plot time series for a lake.
 
     Args:
-        water_dataset_file: Path to water dataset file (zarr).
+        water_dataset_file: Path to water dataset file (zarr or NetCDF).
         lake_id: Geohash ID of the lake to plot.
         output_figure: Path to save the output figure.
         break_method: Break method to overlay (optional).
@@ -62,7 +63,7 @@ def plot_lake_timeseries(
     This function can be imported and used programmatically.
 
     Args:
-        water_dataset_file: Path to water dataset file (zarr).
+        water_dataset_file: Path to water dataset file (zarr or netCDF).
         lake_id: Geohash ID of the lake to plot.
         output_figure: Path to save the output figure.
         break_method: Break method to overlay (optional).
@@ -89,7 +90,7 @@ def plot_lake_timeseries(
         raise ValueError(f"Unknown water dataset type: {water_dataset_type}")
 
     # Plot timeseries
-    if break_method == " beast":
+    if break_method == "beast":
         breakpoints = BeastBreakpoint()
     elif break_method == "simple":
         breakpoints = SimpleBreakpoint()

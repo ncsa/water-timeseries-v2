@@ -118,7 +118,7 @@ def plot_lake(
     """Plot time series for a specific lake.
     
     Args:
-        water_dataset_file: Path to water dataset file (zarr or parquet)
+        water_dataset_file: Path to water dataset file (zarr or netCDF)
         lake_id: Geohash ID of the lake to plot
         output_figure: Path to save the output figure
         break_method: Break method to overlay (optional)
@@ -146,18 +146,29 @@ def plot_lake(
     water_ds = config_dict.get("water_dataset_file")
     lake_id_val = config_dict.get("lake_id")
     output_fig = config_dict.get("output_figure")
+    break_method_val = config_dict.get("break_method")
     
     # Validate required arguments
     if not water_ds or not lake_id_val:
         logger.error("water_dataset_file and lake_id are required. Provide via CLI arguments or config file.")
         raise SystemExit(1)
     
+    # Log key parameters
+    logger.info(
+        f"Plotting lake timeseries with parameters: "
+        f"water_dataset_file={water_ds}, "
+        f"lake_id={lake_id_val}, "
+        f"output_figure={output_fig}, "
+        f"break_method={break_method_val}, "
+        f"show={show}"
+    )
+    
     # Use the imported function
     plot_lake_timeseries(
         water_dataset_file=water_ds,
         lake_id=lake_id_val,
         output_figure=output_fig,
-        break_method=config_dict.get("break_method"),
+        break_method=break_method_val,
         show=show,
     )
 
