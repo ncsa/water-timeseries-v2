@@ -44,6 +44,7 @@ dependencies = [
     "cyclopts>=4.8.0",
     "rich>=14.3.3",
     "nbconvert>=7.17.0",
+    "tk>=0.1.0",
 ]
 
 [project.optional-dependencies]

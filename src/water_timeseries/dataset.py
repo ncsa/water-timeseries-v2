@@ -179,7 +179,7 @@ class DWDataset(LakeDataset):
             id_geohash (str): The geohash identifier for the location.
             breakpoints (BreakpointMethod, optional): Breakpoint detection method to use.
         """
-        self._normalize_ds()
+        # self._normalize_ds()
         df = self.ds.sel(id_geohash=id_geohash).load().to_dataframe().dropna()
         df_plot = prepare_data_for_plot_dw(df, group_vegetation=True)
         normalization_factor = df["area_data"].max()
@@ -261,7 +261,6 @@ class JRCDataset(LakeDataset):
             id_geohash (str): The geohash identifier for the location.
             breakpoints (BreakpointMethod, optional): Breakpoint detection method to use.
         """
-        self._normalize_ds()
         df = self.ds.sel(id_geohash=id_geohash).load().to_dataframe().dropna().reset_index(drop=False)
         normalization_factor = df["area_data"].max()
 

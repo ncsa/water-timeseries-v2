@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Optional
 
 import cyclopts
-import xarray as xr
 from loguru import logger
 
 # Import pipeline and utilities from break_pipeline
@@ -19,8 +18,8 @@ from water_timeseries.scripts.break_pipeline import (
     load_config,
     merge_config_with_args,
 )
-from water_timeseries.dataset import DWDataset, JRCDataset
-from water_timeseries.utils.data import get_water_dataset_type
+# Import plotting function from plot_pipeline
+from water_timeseries.scripts.plot_pipeline import plot_lake_timeseries
 
 # Create the main app
 app = cyclopts.App(name="water-timeseries", help="Water timeseries analysis tools")
@@ -108,12 +107,13 @@ def breakpoint_analysis(
 
 # Subcommand: plot lake timeseries
 @app.command(group="Plotting")
-def plot_lake_timeseries(
+def plot_lake(
     water_dataset_file: Optional[Path] = None,
     lake_id: Optional[str] = None,
     output_figure: Optional[Path] = None,
     break_method: Optional[str] = None,
     config_file: Optional[Path] = None,
+    show: bool = True,
 ):
     """Plot time series for a specific lake.
     
@@ -133,49 +133,33 @@ def plot_lake_timeseries(
     config_dict = load_config(config_file) if config_file else {}
     
     # Merge config with CLI args (CLI takes priority)
+    # Note: show is handled separately since it's a bool
     config_dict = merge_config_with_args(
         config_dict,
         water_dataset_file=str(water_dataset_file) if water_dataset_file else None,
         lake_id=lake_id,
-        output_file=str(output_figure) if output_figure else None,
+        output_figure=str(output_figure) if output_figure else None,
         break_method=break_method,
     )
     
     # Get values from merged config
     water_ds = config_dict.get("water_dataset_file")
     lake_id_val = config_dict.get("lake_id")
+    output_fig = config_dict.get("output_figure")
     
     # Validate required arguments
     if not water_ds or not lake_id_val:
         logger.error("water_dataset_file and lake_id are required. Provide via CLI arguments or config file.")
         raise SystemExit(1)
     
-    # Load dataset
-    ds_xr = xr.load_dataset(water_ds)
-    
-    # Check if id exists in dataset
-    if lake_id_val not in ds_xr.coords["id_geohash"]:
-        logger.error(f"ID {lake_id_val} not found in dataset coordinates")
-        raise SystemExit(1)
-    
-    # Get dataset type
-    water_dataset_type = get_water_dataset_type(ds_xr)
-    if water_dataset_type == "jrc":
-        ds = JRCDataset(ds_xr)
-    elif water_dataset_type == "dynamic_world":
-        ds = DWDataset(ds_xr)
-    else:
-        logger.error(f"Unknown water dataset type: {water_dataset_type}")
-        raise SystemExit(1)
-    
-    # Plot timeseries
-    fig = ds.plot_timeseries(id_geohash=lake_id_val)
-    
-    # Save figure if output path provided
-    output_fig = config_dict.get("output_file")
-    if output_fig:
-        fig.savefig(output_fig)
-        logger.info(f"Saved figure to {output_fig}")
+    # Use the imported function
+    plot_lake_timeseries(
+        water_dataset_file=water_ds,
+        lake_id=lake_id_val,
+        output_figure=output_fig,
+        break_method=config_dict.get("break_method"),
+        show=show,
+    )
 
 
 if __name__ == "__main__":
