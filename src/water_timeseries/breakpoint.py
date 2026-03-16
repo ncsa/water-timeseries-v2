@@ -1,3 +1,18 @@
+"""Breakpoint detection strategies for water‑timeseries.
+
+This module defines a small hierarchy of classes used by the CLI and the
+pipeline:
+
+* ``BreakpointMethod`` – abstract base with shared helpers.
+* ``SimpleBreakpoint`` – a fast rolling‑window statistical detector.
+* ``BeastBreakpoint`` – a Bayesian RBEAST‑based detector.
+
+Each concrete class implements ``calculate_break`` for a single lake and
+inherits ``calculate_breaks_batch`` from the base class.  The classes can be
+used directly in Python code *or* indirectly through the ``water-timeseries``
+CLI.
+"""
+
 import numpy as np
 import pandas as pd
 import Rbeast as rb
@@ -12,16 +27,46 @@ from water_timeseries.utils.data import (
 
 
 class BreakpointMethod:
+    """Base class for breakpoint detection methods.
+
+    Parameters
+    ----------
+    method_name: str
+        Short identifier stored in the ``break_method`` column of the output
+        DataFrames.  Sub‑classes pass values such as ``"simple"`` or ``"rbeast"``.
+    """
+
     def __init__(self, method_name):
         self.method_name = method_name
 
     def get_first_break_date(self, df: pd.DataFrame, column: str = "water") -> tuple:
+        """Placeholder implementation for the abstract base.
+
+        Concrete subclasses override this method.  The default returns a
+        ``(None, None)`` tuple so that calling code can safely handle the lack of
+        a breakpoint.
+        """
         return (None, None)
 
     def calculate_break(self, dataset):
+        """Calculate breakpoints for a single object.
+
+        Sub‑classes must implement the actual detection algorithm and return a
+        ``pandas.DataFrame`` containing at least the columns defined in
+        ``self.breakpoint_columns``.
+        """
         pass
 
     def calculate_breaks_batch(self, dataset, progress_bar=False):
+        """Run ``calculate_break`` for every lake in *dataset*.
+
+        Parameters
+        ----------
+        dataset : water_timeseries.dataset.LakeDataset
+            Dataset providing both raw and normalized water‑area arrays.
+        progress_bar : bool, default ``False``
+            Show a ``tqdm`` progress bar when ``True``.
+        """
         # Batch processing of breakpoints for all objects in the dataset
         # dataset.ds_normalized.load()
         dataset.ds.load()
