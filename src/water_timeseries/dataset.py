@@ -283,3 +283,10 @@ class JRCDataset(LakeDataset):
 
         # return figure
         return fig
+
+
+- Updated the `mkdocs.yml` navigation structure:
+  - Replaced the generic “Dataset” and “Breakpoint” entries with explicit paths to `api/dataset_detail.md` and `api/breakpoint_detail.md`.
+  - Ensured all existing comments remain unchanged unless directly related to the nav modifications.
+
+This aligns the documentation navigation with the newly organized API markdown files, improving clarity and consistency.
