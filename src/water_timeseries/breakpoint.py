@@ -12,6 +12,7 @@ inherits ``calculate_breaks_batch`` from the base class.  The classes can be
 used directly in Python code *or* indirectly through the ``water-timeseries``
 CLI.
 """
+
 import numpy as np
 import pandas as pd
 import Rbeast as rb
@@ -34,6 +35,7 @@ class BreakpointMethod:
         Short identifier stored in the ``break_method`` column of the output
         DataFrames.  Sub‑classes pass values such as ``"simple"`` or ``"rbeast"``.
     """
+
     def __init__(self, method_name):
         self.method_name = method_name
 
