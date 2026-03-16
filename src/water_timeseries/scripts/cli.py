@@ -58,6 +58,8 @@ def breakpoint_analysis(
         bbox_south: Minimum latitude (south)
         bbox_east: Maximum longitude (east)
         bbox_north: Maximum latitude (north)
+        output_geometry: Whether to include geometry in output (default: True)
+        output_geometry_all: Whether to include geometry for all lakes (default: True)
 
     Example usage:
         water-timeseries breakpoint-analysis tests/data/lakes_dw_test.zarr output.parquet
