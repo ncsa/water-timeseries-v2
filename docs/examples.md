@@ -79,6 +79,26 @@ print(processor.ds_normalized_ismasked_)
 
 ## Breakpoint Detection
 
+```python
+from water_timeseries.breakpoint import SimpleBreakpoint, BeastBreakpoint
+from water_timeseries.dataset import DWDataset
+import xarray as xr
+
+# Load a small test dataset
+xr_ds = xr.open_zarr('tests/data/lakes_dw_test.zarr')
+# Wrap in the dataset class
+ds = DWDataset(xr_ds)
+
+# Simple method – one lake
+simple = SimpleBreakpoint()
+print(simple.calculate_break(ds, 'b7uefy0bvcrc'))
+
+# Beast method – batch processing
+beast = BeastBreakpoint()
+print(beast.calculate_breaks_batch(ds, progress_bar=False).head())
+```
+
+
 Detect changes in water extent over time using statistical or advanced methods:
 
 ```python
@@ -182,6 +202,8 @@ uv run water-timeseries breakpoint-analysis --config-file config.yaml --n-jobs 8
 | `--bbox-south` | | Min latitude | None |
 | `--bbox-east` | | Max longitude | None |
 | `--bbox-north` | | Max latitude | None |
+| `--output-geometry` | | Include geometry in output (default: True) | True |
+| `--output-geometry-all` | | Include geometry for all lakes (default: False) | False |
 
 *Can also be provided via config file
 
@@ -212,6 +234,8 @@ uv run water-timeseries plot-timeseries --config-file configs/plot_config.yaml
 | `--output-figure` | | Path to save output figure | None |
 | `--break-method` | | Break method to overlay (beast or simple) | None |
 | `--no-show` | | Don't show popup window | False |
+
+// The `--no-show` flag suppresses the interactive plot window; use it when running headless or when only saving the figure.
 | `--config-file` | | Path to config YAML/JSON file | None |
 
 *Can also be provided via config file
