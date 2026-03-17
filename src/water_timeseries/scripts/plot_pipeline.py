@@ -17,16 +17,7 @@ from water_timeseries.breakpoint import BeastBreakpoint, SimpleBreakpoint
 from water_timeseries.dataset import DWDataset, JRCDataset
 from water_timeseries.utils.data import get_water_dataset_type
 
-# configure logger: writes to rbeast_batch.log in current working dir
-_log_file = Path.cwd() / "rbeast_batch.log"
-logger.add(
-    _log_file,
-    format="{time:YYYY-MM-DD HH:mm:ss} {level} {name}:{function}:{line} - {message}",
-    mode="a",
-    diagnose=False,
-)
-# Bind script filename so logs show script name instead of __main__
-logger = logger.bind(script=Path(__file__).name)
+
 app = typer.Typer(help="Plot time series of dataset")
 
 
@@ -75,7 +66,8 @@ def plot_lake_timeseries(
 
     # Check if id exists in dataset
     if lake_id not in ds_xr.coords["id_geohash"]:
-        logger.error(f"ID {lake_id} not found in dataset coordinates")
+        if logger:
+            logger.error(f"ID {lake_id} not found in dataset coordinates")
         raise ValueError(f"ID {lake_id} not found in dataset coordinates")
 
     # Get dataset type
@@ -85,7 +77,8 @@ def plot_lake_timeseries(
     elif water_dataset_type == "dynamic_world":
         ds = DWDataset(ds_xr)
     else:
-        logger.error(f"Unknown water dataset type: {water_dataset_type}")
+        if logger:
+            logger.error(f"Unknown water dataset type: {water_dataset_type}")
         raise ValueError(f"Unknown water dataset type: {water_dataset_type}")
 
     # Plot timeseries
@@ -101,10 +94,12 @@ def plot_lake_timeseries(
     if output_figure:
         parent_dir = Path(output_figure).parent
         if not parent_dir.exists():
-            logger.info(f'Creating output_directory "{str(parent_dir)}"')
+            if logger:
+                logger.info(f'Creating output_directory "{str(parent_dir)}"')
             parent_dir.mkdir(exist_ok=True)
         fig.savefig(output_figure)
-        logger.info(f"Saved figure to {output_figure}")
+        if logger:
+            logger.info(f"Saved figure to {output_figure}")
 
     # Show figure if requested
     if show:

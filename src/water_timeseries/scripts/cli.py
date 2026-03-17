@@ -7,11 +7,13 @@ Usage:
     water-timeseries plot-timeseries data.zarr --lake-id b7uefy0bvcrc
 """
 
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import cyclopts
 from loguru import logger
+import sys
 
 # Import pipeline and utilities from break_pipeline
 from water_timeseries.scripts.break_pipeline import (
@@ -25,6 +27,49 @@ from water_timeseries.scripts.plot_pipeline import plot_lake_timeseries
 
 # Create the main app
 app = cyclopts.App(name="water-timeseries", help="Water timeseries analysis tools")
+
+
+# Helper function to configure logging
+
+def setup_logging(logfile: Optional[str] = None, verbose: int = 0):
+    """Configure logging with verbosity control.
+    
+    Args:
+        logfile: Path to log file. If not provided, logs to console only.
+        verbose: Verbosity level (0=INFO, 1=DEBUG)
+    
+    Verbosity flags:
+        - No flag or -v: INFO level (default)
+        - -v: DEBUG level
+    """
+    # Determine log level based on verbosity count
+    if verbose >= 1:
+        log_level = "DEBUG"
+    else:
+        log_level = "INFO"
+    
+    # Generate default logfile name from subcommand and timestamp
+    if logfile is None:
+        try:
+            # sys.argv[0] is the script name, sys.argv[1] is the subcommand
+            if len(sys.argv) >= 2:
+                subcommand = sys.argv[1].replace("-", "_")
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                logfile = f"{subcommand}_{timestamp}.log"
+                print(f"Using default logfile: {logfile}")  # Use print to avoid circular logging
+        except Exception:
+            pass
+        # If no logfile set, log to console only
+        if logfile is None:
+            return
+    
+    logger.add(
+        logfile, 
+        rotation="10 MB", 
+        retention="1 week", 
+        level=log_level
+    )
+    print(f"Logging to file: {logfile} with level: {log_level}")  # Use print to avoid circular logging
 
 
 # Subcommand: breakpoint analysis
@@ -43,6 +88,8 @@ def breakpoint_analysis(
     bbox_north: Optional[float] = None,
     output_geometry: bool = True,
     output_geometry_all: bool = True,
+    logfile: Optional[str] = None,
+    verbose: int = 0,
 ):
     """Run breakpoint analysis on water dataset.
 
@@ -60,6 +107,8 @@ def breakpoint_analysis(
         bbox_north: Maximum latitude (north)
         output_geometry: Whether to include geometry in output (default: True)
         output_geometry_all: Whether to include geometry for all lakes (default: True)
+        logfile: Path to log file
+        verbose: Verbosity level (-v for DEBUG)
 
     Example usage:
         water-timeseries breakpoint-analysis tests/data/lakes_dw_test.zarr output.parquet
@@ -84,16 +133,23 @@ def breakpoint_analysis(
         bbox_north=bbox_north,
         output_geometry=output_geometry,
         output_geometry_all=output_geometry_all,
+        logfile=logfile,
+        verbose=verbose,
     )
 
-    # Get water_dataset_file and output_file from merged config
+    # Get values from merged config
     water_ds = config_dict.get("water_dataset_file")
     output_ds = config_dict.get("output_file")
+    logfile_val = config_dict.get("logfile")
+    verbose_val = config_dict.get("verbose", 0)
 
     # Validate required arguments
     if not water_ds or not output_ds:
         logger.error("water_dataset_file and output_file are required. Provide via CLI arguments or config file.")
         raise SystemExit(1)
+
+    # Setup logging AFTER config is loaded
+    setup_logging(logfile=logfile_val, verbose=verbose_val)
 
     # Run the pipeline
     pipeline = BreakpointPipeline(
@@ -124,6 +180,8 @@ def plot_timeseries(
     break_method: Optional[str] = None,
     config_file: Optional[Path] = None,
     show: bool = True,
+    logfile: Optional[str] = None,
+    verbose: int = 0,
 ):
     """Plot time series for a specific lake.
 
@@ -133,6 +191,8 @@ def plot_timeseries(
         output_figure: Path to save the output figure
         break_method: Break method to overlay (optional)
         config_file: Path to config YAML/JSON file
+        logfile: Path to log file
+        verbose: Verbosity level (-v for DEBUG)
 
     Example usage:
         water-timeseries plot-timeseries data.zarr --lake-id b7uefy0bvcrc
@@ -150,6 +210,8 @@ def plot_timeseries(
         lake_id=lake_id,
         output_figure=str(output_figure) if output_figure else None,
         break_method=break_method,
+        logfile=logfile,
+        verbose=verbose,
     )
 
     # Get values from merged config
@@ -157,11 +219,16 @@ def plot_timeseries(
     lake_id_val = config_dict.get("lake_id")
     output_fig = config_dict.get("output_figure")
     break_method_val = config_dict.get("break_method")
+    logfile_val = config_dict.get("logfile")
+    verbose_val = config_dict.get("verbose", 0)
 
     # Validate required arguments
     if not water_ds or not lake_id_val:
         logger.error("water_dataset_file and lake_id are required. Provide via CLI arguments or config file.")
         raise SystemExit(1)
+
+    # Setup logging AFTER config is loaded
+    setup_logging(logfile=logfile_val, verbose=verbose_val)
 
     # Log key parameters
     logger.info(

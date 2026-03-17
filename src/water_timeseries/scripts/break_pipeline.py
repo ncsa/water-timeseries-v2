@@ -35,7 +35,8 @@ def load_config(config_path: Optional[Path]) -> dict:
             elif config_path.suffix == ".json":
                 return json.load(f)
     except Exception as e:
-        logger.warning(f"Failed to load config file {config_path}: {e}")
+        if logger:
+            logger.warning(f"Failed to load config file {config_path}: {e}")
     return {}
 
 
@@ -56,16 +57,8 @@ def merge_config_with_args(config: dict, **kwargs) -> dict:
     return result
 
 
-# configure logger: writes to rbeast_batch.log in current working dir
-_log_file = Path.cwd() / "rbeast_batch.log"
-logger.add(
-    _log_file,
-    format="{time:YYYY-MM-DD HH:mm:ss} {level} {name}:{function}:{line} - {message}",
-    mode="a",
-    diagnose=False,
-)
-# Bind script filename so logs show script name instead of __main__
-logger = logger.bind(script=Path(__file__).name)
+# Logger configuration - controlled by the main CLI's setup_logging()
+# For standalone usage, logging will not be configured
 app = typer.Typer(help="Run Rbeast break detection on Dynamic World lakes")
 
 
@@ -138,16 +131,6 @@ class BreakpointPipeline:
         self.output_geometry = output_geometry
         self.output_geometry_all = output_geometry_all
 
-        if logger:
-            self.logger.info(
-                f"Initialized BreakpointPipeline with: "
-                f"water_dataset={self.water_dataset_file}, "
-                f"output_file={self.output_file}, "
-                f"n_chunks={self.n_chunks}, "
-                f"chunksize={self.chunksize}, "
-                f"n_jobs={self.n_jobs}"
-            )
-
         self.input_ds = self.load_water_data()
         self.get_water_dataset_type()
         self.has_vector_dataset = False
@@ -158,6 +141,17 @@ class BreakpointPipeline:
             self.input_ds = self.apply_bbox_filter()
 
         self.chunked_ds = self.chunk_dataset()
+        
+        # Log initialization if logger is provided
+        if logger:
+            logger.info(
+                f"Initialized BreakpointPipeline with: "
+                f"water_dataset={self.water_dataset_file}, "
+                f"output_file={self.output_file}, "
+                f"n_chunks={self.n_chunks}, "
+                f"chunksize={self.chunksize}, "
+                f"n_jobs={self.n_jobs}"
+            )
 
     def load_water_data(self) -> xr.Dataset:
         """Load water dataset from zarr file.
@@ -175,7 +169,8 @@ class BreakpointPipeline:
 
         # join geospatial data
         if self.gdf is not None and "id_geohash" in self.gdf.columns and self.output_geometry:
-            self.logger.info("Joining break results with vector dataset geometries")
+            if self.logger:
+                self.logger.info("Joining break results with vector dataset geometries")
             local_gdf = self.gdf.set_index("id_geohash").loc[self.process_ids][["geometry"]]
             if self.output_geometry_all:
                 joined = local_gdf.join(self.breaks, how="left").reset_index(drop=False)
@@ -183,7 +178,8 @@ class BreakpointPipeline:
                 joined = local_gdf.join(self.breaks, how="inner").reset_index(drop=False)
             joined.to_parquet(output_file)
         else:
-            self.logger.info("Saving break results without vector dataset geometries")
+            if self.logger:
+                self.logger.info("Saving break results without vector dataset geometries")
             self.breaks.to_parquet(output_file)
 
     def get_water_dataset_type(self) -> str:
