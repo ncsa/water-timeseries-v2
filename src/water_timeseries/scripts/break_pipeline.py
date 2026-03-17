@@ -145,12 +145,12 @@ class BreakpointPipeline:
         # Log initialization if logger is provided
         if logger:
             logger.info(
-                f"Initialized BreakpointPipeline with: "
-                f"water_dataset={self.water_dataset_file}, "
-                f"output_file={self.output_file}, "
-                f"n_chunks={self.n_chunks}, "
-                f"chunksize={self.chunksize}, "
-                f"n_jobs={self.n_jobs}"
+                f"Initialized BreakpointPipeline with:\n"
+                f"water_dataset={self.water_dataset_file}\n"
+                f"output_file={self.output_file}\n"
+                f"n_chunks={self.n_chunks}\n"
+                f"chunksize={self.chunksize}\n"
+                f"n_jobs={self.n_jobs}\n"
             )
 
     def load_water_data(self) -> xr.Dataset:
