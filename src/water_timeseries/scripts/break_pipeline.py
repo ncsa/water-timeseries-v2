@@ -350,7 +350,10 @@ class BreakpointPipeline:
                 ray.init(
                     ignore_reinit_error=True,
                     num_cpus=self.n_jobs,
-                    runtime_env={"env_vars": env_vars},
+                    runtime_env={"env_vars": env_vars, "RAY_LOG_TO_STDERR": "0", "RAY_DEDUP_LOGS":0},  # Suppress Ray process PID lines
+                    logging_level="WARNING",  # Only show WARNING and ERROR level logs from Ray workers
+                    include_dashboard=False,  # Disable Ray dashboard to reduce output
+                    log_to_driver=False,
                 )
             if self.logger:
                 self.logger.info(f"Starting parallel processing with Ray using {self.n_jobs} jobs")
@@ -464,3 +467,12 @@ def main(
 
 if __name__ == "__main__":
     app()
+
+
+
+
+
+
+
+
+
