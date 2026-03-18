@@ -145,12 +145,12 @@ class BreakpointPipeline:
         # Log initialization if logger is provided
         if logger:
             logger.info(
-                f"Initialized BreakpointPipeline with: "
-                f"water_dataset={self.water_dataset_file}, "
-                f"output_file={self.output_file}, "
-                f"n_chunks={self.n_chunks}, "
-                f"chunksize={self.chunksize}, "
-                f"n_jobs={self.n_jobs}"
+                f"Initialized BreakpointPipeline with:\n"
+                f"water_dataset={self.water_dataset_file}\n"
+                f"output_file={self.output_file}\n"
+                f"n_chunks={self.n_chunks}\n"
+                f"chunksize={self.chunksize}\n"
+                f"n_jobs={self.n_jobs}\n"
             )
 
     def load_water_data(self) -> xr.Dataset:
@@ -350,7 +350,14 @@ class BreakpointPipeline:
                 ray.init(
                     ignore_reinit_error=True,
                     num_cpus=self.n_jobs,
-                    runtime_env={"env_vars": env_vars},
+                    runtime_env={
+                        "env_vars": env_vars,
+                        "RAY_LOG_TO_STDERR": "0",
+                        "RAY_DEDUP_LOGS": 0,
+                    },  # Suppress Ray process PID lines
+                    logging_level="WARNING",  # Only show WARNING and ERROR level logs from Ray workers
+                    include_dashboard=False,  # Disable Ray dashboard to reduce output
+                    log_to_driver=False,
                 )
             if self.logger:
                 self.logger.info(f"Starting parallel processing with Ray using {self.n_jobs} jobs")
