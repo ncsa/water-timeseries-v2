@@ -17,6 +17,7 @@ import pandas as pd
 from loguru import logger
 
 from water_timeseries.utils.earthengine import calc_monthly_dw, create_dw_classes_mask, drop_z_from_gdf
+from water_timeseries.utils.spatial import filter_gdf_by_bbox
 
 
 def setup_monthly_dates(years: List[int], months: List[int]) -> List[str]:
@@ -223,11 +224,33 @@ class EarthEngineDownloader:
         if name_attribute not in gdf.columns:
             raise KeyError(f"The designated column '{name_attribute}' is not present in the vector dataset.")
 
-        # TODO: Implement spatial filter
+        # Log initial number of features
+        n_features_initial = len(gdf)
+        self._log_info(f"Initial dataset has {n_features_initial} features")
 
-        # Documentation n features
+        # Apply spatial bbox filter if any bbox parameter is provided and differs from defaults
+        if any(v is not None for v in [bbox_west, bbox_south, bbox_east, bbox_north]) and not (
+            bbox_west == -180 and bbox_east == 180 and bbox_north == 90 and bbox_south == -90
+        ):
+            self._log_info(
+                f"Applying bbox filter: west={bbox_west}, south={bbox_south}, east={bbox_east}, north={bbox_north}"
+            )
+            gdf = filter_gdf_by_bbox(
+                gdf,
+                bbox_west=bbox_west,
+                bbox_south=bbox_south,
+                bbox_east=bbox_east,
+                bbox_north=bbox_north,
+            )
+            n_features_filtered = len(gdf)
+            self._log_info(
+                f"After bbox filter: {n_features_filtered} features (removed {n_features_initial - n_features_filtered})"
+            )
+        else:
+            self._log_info("No spatial bbox filtering applied (using default global bounds)")
+
         n_features = len(gdf)
-        self._log_info(f"Spatial Dataset has {n_features} features")
+        self._log_info(f"Processing {n_features} features")
 
         fc = geemap.gdf_to_ee(drop_z_from_gdf(gdf[:]))
 
@@ -248,7 +271,7 @@ class EarthEngineDownloader:
         dates = setup_monthly_dates(years=years, months=months)
         imlist = []
 
-        self._log_info("Processing")
+        self._log_info("Start downloading process")
         # Iterate through each date and process monthly land cover data
         for date in dates:
             self._log_info(f"Processing date: {date}")
@@ -278,9 +301,6 @@ class EarthEngineDownloader:
 
         # Convert to xarray dataset with proper indexing
         ds = df_out.set_index([feature_index_name, "date"]).to_xarray()
-        # df_final = calculate_data_area(ds).to_dataframe().reset_index()
-        # except:
-        #     print("crashed")
 
         return ds.drop_vars("reducer")
 
