@@ -5,6 +5,7 @@ This module provides a Downloader class to download data from Google Earth Engin
 into Dynamic World or JRC format.
 """
 
+import os
 from pathlib import Path
 from typing import List, Optional
 
@@ -13,8 +14,7 @@ import eemont  # noqa: F401
 import geemap
 import geopandas as gpd
 import pandas as pd
-
-import os
+from loguru import logger
 
 from water_timeseries.utils.earthengine import calc_monthly_dw, create_dw_classes_mask, drop_z_from_gdf
 
@@ -50,9 +50,16 @@ class EarthEngineDownloader:
         ee_project: The Google Earth Engine project identifier.
         output_dir: Directory to save downloaded data.
         ee_auth: Whether to authenticate with Earth Engine.
+        logger: Optional logger instance for logging operations.
     """
 
-    def __init__(self, ee_project: Optional[str] = None, output_dir: Optional[str] = None, ee_auth: bool = False):
+    def __init__(
+        self,
+        ee_project: Optional[str] = None,
+        output_dir: Optional[str] = None,
+        ee_auth: bool = True,
+        logger: Optional[logger] = None,
+    ):
         """
         Initialize the Earth Engine Downloader.
 
@@ -60,14 +67,24 @@ class EarthEngineDownloader:
             ee_project: Google Earth Engine project ID. If None, will check
                 the EE_PROJECT environment variable.
             output_dir: Output directory for downloaded data (optional).
-            ee_auth: Whether to authenticate with Earth Engine (default: False).
+            ee_auth: Whether to authenticate with Earth Engine (default: True).
+            logger: Optional logger instance. If provided, will be used for logging.
+                If None, print statements will be used as fallback.
 
         Raises:
             ValueError: If ee_project is empty or invalid.
         """
-        # Use _check_ee_initialization to handle project ID resolution
-        self.ee_project = ee_project
-        self.ee_project = self._check_ee_initialization()
+        self.logger = logger
+
+        # Use _check_ee_product_name_setup to handle project ID resolution
+        self.ee_project = self._check_ee_product_name_setup(ee_project)
+
+        # Log initialization
+        self._log_info(f"Initializing EarthEngineDownloader with project: {self.ee_project}")
+
+        # Check and record EE initialization status
+        self._check_ee_initialization_status()
+
         self.output_dir = Path(output_dir) if output_dir else Path("downloads")
         self.ee_auth = ee_auth
         self.dw_bandnames = [
@@ -85,6 +102,30 @@ class EarthEngineDownloader:
         # Initialize Earth Engine
         if ee_auth:
             geemap.ee_initialize(project=self.ee_project)
+            self._check_ee_initialization_status()
+
+        self._log_info(f"EarthEngineDownloader initialized successfully. Output directory: {self.output_dir}")
+
+    def _log_info(self, message: str):
+        """Log an info message using the provided logger or print."""
+        if self.logger is not None:
+            self.logger.info(message)
+        else:
+            print(message)
+
+    def _log_warning(self, message: str):
+        """Log a warning message using the provided logger or print."""
+        if self.logger is not None:
+            self.logger.warning(message)
+        else:
+            print(f"Warning: {message}")
+
+    def _log_error(self, message: str):
+        """Log an error message using the provided logger or print."""
+        if self.logger is not None:
+            self.logger.error(message)
+        else:
+            print(f"Error: {message}")
 
     def _ensure_output_dir(self) -> Path:
         """Create output directory if it doesn't exist.
@@ -95,11 +136,14 @@ class EarthEngineDownloader:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         return self.output_dir
 
-    def _check_ee_initialization(self) -> str:
+    def _check_ee_product_name_setup(self, ee_project: Optional[str] = None) -> str:
         """Check and return the Earth Engine project ID.
 
-        Checks the ee_project attribute first, and if None, falls back to
+        Checks the ee_project parameter first, and if None, falls back to
         checking the EE_PROJECT environment variable.
+
+        Args:
+            ee_project: The ee_project parameter to check.
 
         Returns:
             str: The Earth Engine project ID.
@@ -108,27 +152,37 @@ class EarthEngineDownloader:
             ValueError: If neither ee_project nor EE_PROJECT env var is set, or
                 if the project ID is an empty string.
         """
-        # First check if ee_project is set and non-empty
-        if self.ee_project is not None and isinstance(self.ee_project, str):
-            if self.ee_project.strip() == "":
-                raise ValueError(
-                    "ee_project must be provided or set as EE_PROJECT environment variable"
-                )
-            return self.ee_project
+        # First check if ee_project parameter is set and non-empty
+        if ee_project is not None and isinstance(ee_project, str):
+            if ee_project.strip() == "":
+                raise ValueError("ee_project must be provided or set as EE_PROJECT environment variable")
+            return ee_project
 
         # If ee_project is None, check environment variable
         ee_project_env = os.getenv("EE_PROJECT")
         if ee_project_env is not None and isinstance(ee_project_env, str):
             if ee_project_env.strip() == "":
-                raise ValueError(
-                    "ee_project must be provided or set as EE_PROJECT environment variable"
-                )
+                raise ValueError("ee_project must be provided or set as EE_PROJECT environment variable")
             return ee_project_env
 
         # If neither is set, raise an error
-        raise ValueError(
-            "ee_project must be provided or set as EE_PROJECT environment variable"
-        )
+        raise ValueError("ee_project must be provided or set as EE_PROJECT environment variable")
+
+    def _check_ee_initialization_status(self):
+        """Check and record if Earth Engine is properly initialized.
+
+        Returns:
+            bool: True if EE is initialized, False otherwise.
+        """
+        try:
+            # Check if ee.data is accessible (indicates successful initialization)
+            self.ee_is_initialized = ee.data is not None and hasattr(ee.data, "getInfo")
+            if not self.ee_is_initialized:
+                self._log_warning("Earth Engine may not be properly initialized")
+        except Exception:
+            self.ee_is_initialized = False
+            self._log_warning("Earth Engine initialization check failed")
+        return self.ee_is_initialized
 
     def download_dw_monthly(
         self,
@@ -169,6 +223,12 @@ class EarthEngineDownloader:
         if name_attribute not in gdf.columns:
             raise KeyError(f"The designated column '{name_attribute}' is not present in the vector dataset.")
 
+        # TODO: Implement spatial filter
+
+        # Documentation n features
+        n_features = len(gdf)
+        self._log_info(f"Spatial Dataset has {n_features} features")
+
         fc = geemap.gdf_to_ee(drop_z_from_gdf(gdf[:]))
 
         # Configuration for reduction operation
@@ -183,20 +243,21 @@ class EarthEngineDownloader:
             "scale": SCALE,
             "bands": self.dw_bandnames,
         }
+
         # Generate date range based on years and months
         dates = setup_monthly_dates(years=years, months=months)
         imlist = []
 
-        print("Processing")
+        self._log_info("Processing")
         # Iterate through each date and process monthly land cover data
         for date in dates:
-            print(date)
+            self._log_info(f"Processing date: {date}")
             try:
                 # Calculate monthly Dynamic World land cover for the date
                 im = calc_monthly_dw(start_date=date, polygons=fc)
                 # assert isinstance(im, ee.Image)
                 if im is None:
-                    print(f"No data for date: {date}")
+                    self._log_warning(f"No data for date: {date}")
                     continue
                 # Create masks for land cover classes
                 im_classes = create_dw_classes_mask(ee.Image(im))
@@ -205,7 +266,7 @@ class EarthEngineDownloader:
                 # Skip dates with errors
                 continue
 
-        print(len(imlist))
+        self._log_info(f"Total images collected: {len(imlist)}")
         # Create an ImageCollection from the processed images
         ic_classes = ee.ImageCollection(imlist)
 
@@ -221,7 +282,7 @@ class EarthEngineDownloader:
         # except:
         #     print("crashed")
 
-        return ds.drop_vars('reducer')
+        return ds.drop_vars("reducer")
 
 
 # Example usage

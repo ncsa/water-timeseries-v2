@@ -5,9 +5,7 @@ This module contains comprehensive tests for authentication, downloading
 Dynamic World data, JRC data, and error handling.
 """
 
-import os
 import unittest.mock as mock
-from pathlib import Path
 
 import pytest
 

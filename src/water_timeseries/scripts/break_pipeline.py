@@ -15,6 +15,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRe
 
 from water_timeseries.breakpoint import BeastBreakpoint
 from water_timeseries.dataset import DWDataset, JRCDataset
+from water_timeseries.utils.spatial import filter_gdf_by_bbox
 
 
 def load_config(config_path: Optional[Path]) -> dict:
@@ -246,19 +247,16 @@ class BreakpointPipeline:
                 .tolist()
             )
 
-            # Apply bbox filter on the geodataframe
+            # Apply bbox filter on the geodataframe using the reusable function
             if any(v is not None for v in (self.bbox_west, self.bbox_east, self.bbox_south, self.bbox_north)):
-                cent = gdf.geometry.centroid
-                mask = True
-                if self.bbox_west is not None:
-                    mask &= cent.x >= self.bbox_west
-                if self.bbox_east is not None:
-                    mask &= cent.x <= self.bbox_east
-                if self.bbox_south is not None:
-                    mask &= cent.y >= self.bbox_south
-                if self.bbox_north is not None:
-                    mask &= cent.y <= self.bbox_north
-                filtered_gdf = gdf[mask]
+                filtered_gdf = filter_gdf_by_bbox(
+                    gdf,
+                    bbox_west=self.bbox_west,
+                    bbox_south=self.bbox_south,
+                    bbox_east=self.bbox_east,
+                    bbox_north=self.bbox_north,
+                    id_column="id_geohash",
+                )
 
                 # Get overlapping IDs after bbox filter
                 filtered_overlap_ids = (
