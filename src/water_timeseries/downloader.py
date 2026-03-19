@@ -286,6 +286,7 @@ class EarthEngineDownloader:
         scale: float = 10,
         max_total_requests: int = 500,
         n_parallel: int = 1,
+        no_download: bool = False,
     ) -> xr.Dataset:
         """Download monthly Dynamic World land cover data for specified periods.
 
@@ -304,6 +305,8 @@ class EarthEngineDownloader:
             id_list: Optional list of IDs to filter by (values from name_attribute column).
                 If provided, only features matching these IDs will be processed.
                 Default is None (no ID filtering).
+            no_download: If True, only log the download parameters without actually 
+                downloading data (default: False).
 
         Returns:
             xr.Dataset: Xarray dataset with land cover areas indexed by name
@@ -408,6 +411,12 @@ class EarthEngineDownloader:
         # Chunk the GeoDataFrame into smaller pieces based on number of dates
         n_dates = len(imlist)
         gdf_chunks = self._chunk_gdf(gdf, max_total_requests, n_dates=n_dates)
+        
+        # Return early if no_download is True - just log the parameters
+        if no_download:
+            self._log_info("no_download=True - Skipping actual download, only logging parameters")
+            self._log_info(f"Would process {len(gdf)} features with {len(gdf_chunks)} chunks")
+            return None
         
         # Ensure n_parallel is not greater than number of chunks
         n_parallel_effective = min(n_parallel, len(gdf_chunks))
