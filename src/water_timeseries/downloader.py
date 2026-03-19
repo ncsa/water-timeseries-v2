@@ -14,6 +14,7 @@ import eemont  # noqa: F401
 import geemap
 import geopandas as gpd
 import joblib
+import pandas as pd
 import xarray as xr
 from loguru import logger
 from tqdm import tqdm
@@ -21,7 +22,6 @@ from tqdm import tqdm
 from water_timeseries.utils.data import load_vector_dataset
 from water_timeseries.utils.earthengine import calc_monthly_dw, create_dw_classes_mask, drop_z_from_gdf
 from water_timeseries.utils.spatial import filter_gdf_by_bbox
-import pandas as pd
 
 
 def setup_monthly_dates(years: List[int], months: List[int]) -> List[str]:
@@ -248,19 +248,19 @@ class EarthEngineDownloader:
 
     def _apply_id_filter(self, gdf, id_list: Optional[List], name_attribute: str) -> gpd.GeoDataFrame:
         """Apply ID filter to the GeoDataFrame.
-        
+
         Args:
             gdf: GeoDataFrame to filter.
             id_list: Optional list of IDs to filter by.
             name_attribute: Column name to use for filtering.
-            
+
         Returns:
             Filtered GeoDataFrame.
         """
         if id_list is None or len(id_list) == 0:
             self._log_info("No ID filtering applied")
             return gdf
-            
+
         self._log_info(f"Applying ID filter: {len(id_list)} IDs specified")
 
         # Check which IDs are available in the dataset
@@ -348,7 +348,7 @@ class EarthEngineDownloader:
             id_list: Optional list of IDs to filter by (values from name_attribute column).
                 If provided, only features matching these IDs will be processed.
                 Default is None (no ID filtering).
-            no_download: If True, only log the download parameters without actually 
+            no_download: If True, only log the download parameters without actually
                 downloading data (default: False).
 
         Returns:
@@ -431,26 +431,23 @@ class EarthEngineDownloader:
         # Chunk the GeoDataFrame into smaller pieces based on number of dates
         n_dates = len(imlist)
         gdf_chunks = self._chunk_gdf(gdf, max_total_requests, n_dates=n_dates)
-        
+
         # Return early if no_download is True - skip downloading but show summary
         if no_download:
             self._log_info(f"Would process {len(gdf)} features with {len(gdf_chunks)} chunks")
             self._log_info("=== END NO DOWNLOAD MODE ===")
             return None
-        
+
         # Ensure n_parallel is not greater than number of chunks
         n_parallel_effective = min(n_parallel, len(gdf_chunks))
-        
+
         # Process chunks with joblib (sequential if n_parallel=1, parallel otherwise)
         self._log_info(f"Processing {len(gdf_chunks)} chunks with {n_parallel_effective} workers")
-        
+
         # Use tqdm for progress bar
         df_out_list = joblib.Parallel(n_jobs=n_parallel_effective, prefer="threads")(
             joblib.delayed(self._extract_time_series)(
-                imlist=imlist, 
-                gdf_chunk=chunk, 
-                name_attribute=name_attribute,
-                scale=scale
+                imlist=imlist, gdf_chunk=chunk, name_attribute=name_attribute, scale=scale
             )
             for chunk in tqdm(gdf_chunks, desc="Downloading chunks", unit="chunk")
         )
