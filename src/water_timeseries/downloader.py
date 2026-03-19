@@ -305,12 +305,11 @@ class EarthEngineDownloader:
         # Generate date range based on years and months
         dates = setup_monthly_dates(years=years, months=months)
         self._log_info(f"Processing date: {dates}")
-        
+
         imlist = []
         self._log_info("Start downloading process")
         # Iterate through each date and process monthly land cover data
         for date in dates:
-            self._log_info(f"Processing date: {date}")
             try:
                 # Calculate monthly Dynamic World land cover for the date
                 im = calc_monthly_dw(start_date=date, polygons=fc)
