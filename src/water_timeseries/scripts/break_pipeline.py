@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 from typing import Optional
 
-import geopandas as gpd
 import pandas as pd
 import ray
 import typer
@@ -15,6 +14,8 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRe
 
 from water_timeseries.breakpoint import BeastBreakpoint
 from water_timeseries.dataset import DWDataset, JRCDataset
+from water_timeseries.utils.data import load_vector_dataset
+from water_timeseries.utils.spatial import filter_gdf_by_bbox
 
 
 def load_config(config_path: Optional[Path]) -> dict:
@@ -196,23 +197,10 @@ class BreakpointPipeline:
     def load_vector_data(self):
         """Load vector dataset from file.
 
-        Supports gpkg, shp, and other geopandas formats.
+        Uses the reusable load_vector_dataset function from utils.data.
         """
         if self.vector_dataset_file is not None:
-            vector_path = Path(self.vector_dataset_file)
-            suffix = vector_path.suffix.lower()
-
-            if self.logger:
-                self.logger.info(f"Loading vector dataset from {self.vector_dataset_file}")
-
-            if suffix in [".gpkg", ".shp", ".geojson", ".gjson"]:
-                vector_ds = gpd.read_file(self.vector_dataset_file)
-            elif suffix in [".parquet"]:
-                vector_ds = gpd.read_parquet(self.vector_dataset_file)
-            else:
-                if self.logger:
-                    self.logger.warning(f"Unsupported vector file format: {suffix}")
-                return None
+            vector_ds = load_vector_dataset(self.vector_dataset_file, logger=self.logger)
 
             self.has_vector_dataset_ = True
             return vector_ds
@@ -246,19 +234,16 @@ class BreakpointPipeline:
                 .tolist()
             )
 
-            # Apply bbox filter on the geodataframe
+            # Apply bbox filter on the geodataframe using the reusable function
             if any(v is not None for v in (self.bbox_west, self.bbox_east, self.bbox_south, self.bbox_north)):
-                cent = gdf.geometry.centroid
-                mask = True
-                if self.bbox_west is not None:
-                    mask &= cent.x >= self.bbox_west
-                if self.bbox_east is not None:
-                    mask &= cent.x <= self.bbox_east
-                if self.bbox_south is not None:
-                    mask &= cent.y >= self.bbox_south
-                if self.bbox_north is not None:
-                    mask &= cent.y <= self.bbox_north
-                filtered_gdf = gdf[mask]
+                filtered_gdf = filter_gdf_by_bbox(
+                    gdf,
+                    bbox_west=self.bbox_west,
+                    bbox_south=self.bbox_south,
+                    bbox_east=self.bbox_east,
+                    bbox_north=self.bbox_north,
+                    id_column="id_geohash",
+                )
 
                 # Get overlapping IDs after bbox filter
                 filtered_overlap_ids = (
