@@ -15,6 +15,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRe
 
 from water_timeseries.breakpoint import BeastBreakpoint
 from water_timeseries.dataset import DWDataset, JRCDataset
+from water_timeseries.utils.data import load_vector_dataset
 from water_timeseries.utils.spatial import filter_gdf_by_bbox
 
 
@@ -197,23 +198,10 @@ class BreakpointPipeline:
     def load_vector_data(self):
         """Load vector dataset from file.
 
-        Supports gpkg, shp, and other geopandas formats.
+        Uses the reusable load_vector_dataset function from utils.data.
         """
         if self.vector_dataset_file is not None:
-            vector_path = Path(self.vector_dataset_file)
-            suffix = vector_path.suffix.lower()
-
-            if self.logger:
-                self.logger.info(f"Loading vector dataset from {self.vector_dataset_file}")
-
-            if suffix in [".gpkg", ".shp", ".geojson", ".gjson"]:
-                vector_ds = gpd.read_file(self.vector_dataset_file)
-            elif suffix in [".parquet"]:
-                vector_ds = gpd.read_parquet(self.vector_dataset_file)
-            else:
-                if self.logger:
-                    self.logger.warning(f"Unsupported vector file format: {suffix}")
-                return None
+            vector_ds = load_vector_dataset(self.vector_dataset_file, logger=self.logger)
 
             self.has_vector_dataset_ = True
             return vector_ds

@@ -12,10 +12,10 @@ from typing import List, Optional
 import ee
 import eemont  # noqa: F401
 import geemap
-import geopandas as gpd
 import pandas as pd
 from loguru import logger
 
+from water_timeseries.utils.data import load_vector_dataset
 from water_timeseries.utils.earthengine import calc_monthly_dw, create_dw_classes_mask, drop_z_from_gdf
 from water_timeseries.utils.spatial import filter_gdf_by_bbox
 
@@ -223,8 +223,8 @@ class EarthEngineDownloader:
             KeyError: If the specified name_attribute column is not found in the
                 vector dataset.
         """
-        # Read vector data from parquet file
-        gdf = gpd.read_parquet(vector_dataset)
+        # Read vector data using the reusable function
+        gdf = load_vector_dataset(vector_dataset, logger=self.logger)
         if name_attribute not in gdf.columns:
             raise KeyError(f"The designated column '{name_attribute}' is not present in the vector dataset.")
 
@@ -304,8 +304,9 @@ class EarthEngineDownloader:
 
         # Generate date range based on years and months
         dates = setup_monthly_dates(years=years, months=months)
+        self._log_info(f"Processing date: {dates}")
+        
         imlist = []
-
         self._log_info("Start downloading process")
         # Iterate through each date and process monthly land cover data
         for date in dates:
