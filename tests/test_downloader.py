@@ -13,7 +13,6 @@ import pytest
 from water_timeseries.downloader import EarthEngineDownloader
 from water_timeseries.utils.spatial import filter_gdf_by_bbox
 
-
 # Path to test data
 TEST_DATA_DIR = pathlib.Path(__file__).parent / "data"
 VECTOR_DATASET = TEST_DATA_DIR / "lake_polygons.parquet"

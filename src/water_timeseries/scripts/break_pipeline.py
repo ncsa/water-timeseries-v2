@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 from typing import Optional
 
-import geopandas as gpd
 import pandas as pd
 import ray
 import typer

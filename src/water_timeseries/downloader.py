@@ -12,7 +12,7 @@ from typing import List, Optional
 import ee
 import eemont  # noqa: F401
 import geemap
-import pandas as pd
+import xarray as xr
 from loguru import logger
 
 from water_timeseries.utils.data import load_vector_dataset
@@ -196,7 +196,7 @@ class EarthEngineDownloader:
         bbox_north: float = 90,
         bbox_south: float = -90,
         id_list: Optional[List] = None,
-    ) -> pd.DataFrame:
+    ) -> xr.Dataset:
         """Download monthly Dynamic World land cover data for specified periods.
 
         Extracts land cover class areas from Google Earth Engine for each

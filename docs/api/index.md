@@ -10,6 +10,9 @@ This section provides comprehensive API documentation for the water-timeseries p
 ### Breakpoint Detection
 - [Breakpoint](breakpoint.md) - Breakpoint detection methods for identifying changes in water extent
 
+### Data Download
+- [Downloader](downloader.md) - Google Earth Engine data downloader (`EarthEngineDownloader`)
+
 ### Utilities
 - [Utils](utils.md) - Plotting and helper utilities
 
