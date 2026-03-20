@@ -14,7 +14,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRe
 
 from water_timeseries.breakpoint import BeastBreakpoint
 from water_timeseries.dataset import DWDataset, JRCDataset
-from water_timeseries.utils.data import load_vector_dataset
+from water_timeseries.utils.io import load_vector_dataset
 from water_timeseries.utils.spatial import filter_gdf_by_bbox
 
 

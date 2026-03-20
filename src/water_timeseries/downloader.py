@@ -47,6 +47,60 @@ def setup_monthly_dates(years: List[int], months: List[int]) -> List[str]:
     return dates
 
 
+def setup_dates_from_options(
+    years: Optional[List[int]] = None,
+    months: Optional[List[int]] = None,
+    date_list: Optional[List[str]] = None,
+) -> List[str]:
+    """Validate and generate a list of dates from either date_list OR (years AND months).
+
+    This function enforces mutual exclusivity between date_list and (years, months).
+
+    Args:
+        years: List of years (e.g., [2017, 2018]). Must be provided together with
+            `months` if `date_list` is not used.
+        months: List of months as integers (1-12). Must be provided together with
+            `years` if `date_list` is not used.
+        date_list: Optional list of dates in 'YYYY-MM' format (e.g., ['2017-06', '2018-07']).
+            If provided, `years` and `months` are ignored.
+
+    Returns:
+        List[str]: Formatted dates in 'YYYY-MM-DD' format.
+
+    Raises:
+        ValueError: If neither (years and months) nor date_list is provided,
+            or if both are provided.
+
+    Example:
+        >>> setup_dates_from_options(date_list=['2017-06', '2018-07'])
+        ['2017-06-01', '2018-07-01']
+        >>> setup_dates_from_options(years=[2017], months=[6, 7])
+        ['2017-06-01', '2017-07-01']
+    """
+    # Validate date parameters: either date_list OR (years AND months)
+    if date_list is not None and (years is not None or months is not None):
+        raise ValueError(
+            "Invalid date parameters: either provide 'date_list' OR ('years' AND 'months'), "
+            "but not both. These options are mutually exclusive."
+        )
+
+    if date_list is None and (years is None or months is None):
+        raise ValueError(
+            "Invalid date parameters: either provide 'date_list' or both 'years' and 'months'. "
+            f"Received: years={years}, months={months}, date_list={date_list}"
+        )
+
+    # Generate dates based on the input
+    if date_list is not None:
+        # Convert YYYY-MM format to YYYY-MM-DD format (first day of month)
+        return [f"{d}-01" for d in date_list]
+    else:
+        # Use years and months (with defaults if not provided)
+        years = years if years is not None else [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+        months = months if months is not None else [6, 7, 8, 9]
+        return setup_monthly_dates(years=years, months=months)
+
+
 class EarthEngineDownloader:
     """
     A class to download data from Google Earth Engine into various formats.
@@ -340,8 +394,9 @@ class EarthEngineDownloader:
         self,
         vector_dataset: str | Path,
         name_attribute: str,
-        years: List[int] = [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025],
-        months: List[int] = [6, 7, 8, 9],
+        years: Optional[List[int]] = None,
+        months: Optional[List[int]] = None,
+        date_list: Optional[List[str]] = None,
         bbox_west: float = -180,
         bbox_east: float = 180,
         bbox_north: float = 90,
@@ -358,11 +413,19 @@ class EarthEngineDownloader:
         Extracts land cover class areas from Google Earth Engine for each
         polygon in the vector dataset, grouped by the specified date periods.
 
+        Either provide `date_list` OR (`years` AND `months`). These options are
+        mutually exclusive.
+
         Args:
             vector_dataset: Path to the input vector dataset (Parquet format).
             name_attribute: Column name in the vector dataset to use for grouping.
-            years: List of years to process (default: 2017-2025).
-            months: List of months to process as integers (default: June-September).
+            years: List of years to process. Must be provided together with `months`
+                if `date_list` is not used. Default: [2017-2025].
+            months: List of months to process as integers (1-12). Must be provided
+                together with `years` if `date_list` is not used. Default: [6,7,8,9].
+            date_list: Optional list of dates in 'YYYY-MM' format (e.g., ['2017-06', '2018-07']).
+                If provided, `years` and `months` are ignored. Mutually exclusive with
+                (years AND months).
             bbox_west: Western boundary for spatial filtering (default: -180).
             bbox_east: Eastern boundary for spatial filtering (default: 180).
             bbox_north: Northern boundary for spatial filtering (default: 90).
@@ -384,6 +447,8 @@ class EarthEngineDownloader:
         Raises:
             KeyError: If the specified name_attribute column is not found in the
                 vector dataset.
+            ValueError: If neither (years and months) nor date_list is provided,
+                or if both are provided.
         """
         # Announce no_download mode at the top
         if no_download:
@@ -426,8 +491,8 @@ class EarthEngineDownloader:
         n_features = len(gdf)
         self._log_info(f"Processing {n_features} features")
 
-        # Generate date range based on years and months
-        dates = setup_monthly_dates(years=years, months=months)
+        # Generate dates from options (validates and handles mutually exclusive parameters)
+        dates = setup_dates_from_options(years=years, months=months, date_list=date_list)
         n_dates = len(dates)
         n_total_requests = n_features * n_dates
         self._log_info(f"Processing {n_features} features x {n_dates} dates = {n_total_requests} total requests")
