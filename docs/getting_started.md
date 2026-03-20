@@ -296,6 +296,69 @@ The package includes comprehensive tests for all functionality. Tests are organi
 - **Breakpoint detection**: Simple and RBEAST-based methods
 - **Integration tests**: End-to-end functionality with real and synthetic data
 
+## Interactive Dashboard
+
+The package includes an interactive Streamlit dashboard for visualizing lake polygons and time series data.
+
+### Running the Dashboard
+
+```bash
+# Install streamlit if not already installed
+pip install streamlit plotly
+
+# Run the dashboard
+streamlit run src/water_timeseries/dashboard/app.py
+```
+
+### Dashboard Features
+
+The dashboard provides a graphical interface for:
+
+1. **Map Visualization**: Interactive map showing lake polygons from a parquet file
+   - Hover over polygons to see attributes (id_geohash, area, net change)
+   - Click on a polygon to select it
+
+2. **Time Series Plotting**: Automatically plots water extent over time for the selected lake
+   - Shows a preview below the map
+   - Click "Open Time Series in Popup" for a larger view
+
+3. **Automatic Download**: If the selected lake's data is not in the cached dataset:
+   - Shows "Downloading..." status
+   - Automatically fetches data from Google Earth Engine
+   - Displays the time series plot after download completes
+
+4. **Google Earth Engine Configuration**:
+   - Enter your EE project in the sidebar
+   - Click "Set EE Project" to save it
+
+### Dashboard Arguments
+
+The `create_app()` function accepts these parameters:
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `data_path` | str/Path | Path to parquet file with lake polygons | `tests/data/lake_polygons.parquet` |
+| `zarr_path` | str/Path | Path to zarr file with cached time series | `tests/data/lakes_dw_test.zarr` |
+
+### Using with Custom Data
+
+```python
+from water_timeseries.dashboard.map_viewer import create_app
+
+# Create dashboard with custom paths
+create_app(
+    data_path="/path/to/your/lakes.parquet",
+    zarr_path="/path/to/your/data.zarr"
+)
+```
+
+Or run directly with custom paths:
+
+```bash
+# Modify the app.py or create a custom launcher
+streamlit run your_custom_app.py
+```
+
 ### Running Tests
 
 To run the test suite:

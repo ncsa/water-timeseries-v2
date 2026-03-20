@@ -25,6 +25,22 @@ Documentation is automatically built and deployed on every push to `main` using 
 - **Batch Processing**: Efficient processing of multiple spatial entities
 - **Comprehensive Testing**: Full test coverage including breakpoint detection, normalization, and integration tests
 
+## Dashboard
+
+Interactive Streamlit dashboard for visualizing lake polygons and time series data:
+
+```bash
+streamlit run src/water_timeseries/dashboard/app.py
+```
+
+Features:
+- Interactive map with lake polygons from parquet files
+- Hover to see attributes (id_geohash, area, net change)
+- Click to select and view time series
+- Automatic download from Google Earth Engine if data not available
+
+![Dashboard](figures/dashboard.png)
+
 ## Quick Start
 
 ### Python API

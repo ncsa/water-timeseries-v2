@@ -239,3 +239,54 @@ uv run water-timeseries plot-timeseries --config-file configs/plot_config.yaml
 | `--config-file` | | Path to config YAML/JSON file | None |
 
 *Can also be provided via config file
+
+## Interactive Dashboard
+
+The package includes a Streamlit dashboard for interactive visualization of lake polygons and time series data.
+
+### Running the Dashboard
+
+```bash
+# Install streamlit and plotly if not already installed
+pip install streamlit plotly
+
+# Run the dashboard
+streamlit run src/water_timeseries/dashboard/app.py
+```
+
+### Dashboard Workflow
+
+1. **Map View**: The dashboard loads lake polygons from a parquet file and displays them on an interactive map
+2. **Selection**: Click on any lake polygon to select it
+3. **Time Series**: The dashboard automatically loads/creates a DWDataset and plots the time series for the selected lake
+4. **Automatic Download**: If the selected lake's data is not in the cached zarr file, it automatically downloads from Google Earth Engine
+
+### Sidebar Settings
+
+- **Google Earth Engine Project**: Enter your EE project ID and click "Set EE Project"
+- **Parquet File Path**: Path to the lake polygons file (default: `tests/data/lake_polygons.parquet`)
+- **Zarr Path**: Path to cached time series data (default: `tests/data/lakes_dw_test.zarr`)
+- **ID Column**: The column name containing geohash IDs (default: `id_geohash`)
+- **Zoom Level**: Initial map zoom (1-20)
+
+### Features
+
+- **Hover**: View lake attributes (id_geohash, area, net change) on hover
+- **Click**: Select a lake to view its time series
+- **Popup**: Click "Open Time Series in Popup" for a larger plot view
+- **Automatic Download**: Missing data is fetched automatically from GEE
+
+### Python API
+
+```python
+from water_timeseries.dashboard.map_viewer import create_app
+
+# Basic usage with defaults
+create_app()
+
+# Custom paths
+create_app(
+    data_path="/path/to/lakes.parquet",
+    zarr_path="/path/to/timeseries.zarr"
+)
+```
