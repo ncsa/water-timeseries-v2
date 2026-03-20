@@ -372,7 +372,6 @@ def create_app(
                 try:
                     ds = xr.open_zarr(zarr_path_input)
                     st.session_state.dw_dataset = DWDataset(ds)
-                    st.sidebar.write("Dataset loaded successfully!")
                 except Exception as e:
                     st.error(f"Error loading time series data: {e}")
             
@@ -382,42 +381,39 @@ def create_app(
                 available_ids = st.session_state.dw_dataset.object_ids_
                 id_available = current in available_ids
             
+            # Automatically download if not available
             if not id_available:
-                st.warning(f"⚠️ id_geohash '{current}' not found in cached dataset.")
+                st.caption("Downloading...")
                 
-                # Offer to download missing data
-                if st.button(f"📥 Download data for {current}", key="download_missing"):
-                    with st.spinner("Downloading data from Google Earth Engine..."):
-                        try:
-                            # Create downloader
-                            downloader = EarthEngineDownloader(ee_auth=True)
-                            
-                            # Download data for the specific geohash
-                            ds_downloaded = downloader.download_dw_monthly(
-                                vector_dataset=data_path_input,
-                                name_attribute=id_column,
-                                id_list=[current],
-                                years=list(range(2017, 2026)),
-                                months=[6, 7, 8, 9],
-                                date_list=None,
-                            )
-                            
-                            if ds_downloaded is not None:
-                                # Store downloaded dataset separately
-                                st.session_state.downloaded_ds = ds_downloaded
-                                # Convert to DWDataset
-                                st.session_state.dw_dataset = DWDataset(ds_downloaded)
-                                st.success("Data downloaded successfully!")
-                                # Force a rerun to display the plot
-                                st.rerun()
-                            else:
-                                st.error("Download returned no data.")
-                                
-                        except Exception as e:
-                            st.error(f"Error downloading data: {e}")
-                            st.info("Make sure you have Google Earth Engine authentication configured.")
+                # Download data for the specific geohash
+                try:
+                    # Create downloader
+                    downloader = EarthEngineDownloader(ee_auth=True)
+                    
+                    # Download data for the specific geohash
+                    ds_downloaded = downloader.download_dw_monthly(
+                        vector_dataset=data_path_input,
+                        name_attribute=id_column,
+                        id_list=[current],
+                        years=list(range(2017, 2026)),
+                        months=[6, 7, 8, 9],
+                        date_list=None,
+                    )
+                    
+                    if ds_downloaded is not None:
+                        # Store and convert to DWDataset
+                        st.session_state.downloaded_ds = ds_downloaded
+                        st.session_state.dw_dataset = DWDataset(ds_downloaded)
+                        id_available = True
+                        st.rerun()
+                    else:
+                        st.error("Download returned no data.")
+                        
+                except Exception as e:
+                    st.error(f"Error downloading data: {e}")
+                    st.info("Make sure you have Google Earth Engine authentication configured.")
             
-            # Plot time series preview if dataset is loaded and id is available
+            # Plot time series if available
             if st.session_state.dw_dataset is not None and id_available:
                 try:
                     fig = st.session_state.dw_dataset.plot_timeseries(current)
@@ -426,10 +422,6 @@ def create_app(
                     plt.close(fig)  # Close figure to free memory
                 except Exception as e:
                     st.error(f"Error plotting time series: {e}")
-            elif st.session_state.dw_dataset is not None and not id_available:
-                st.info("Please download the missing data to view the time series.")
-            else:
-                st.warning("Unable to load time series dataset.")
         
         # Popup dialog for time series
         if st.session_state.get("show_ts_popup", False) and current:
@@ -450,26 +442,44 @@ def create_app(
                         st.session_state.dw_dataset = DWDataset(ds)
                     except Exception as e:
                         st.error(f"Error loading time series data: {e}")
-                        st.stop()
                 
                 # Check if id is available
-                available_ids = st.session_state.dw_dataset.object_ids_
-                id_available = current in available_ids
+                id_available = False
+                if st.session_state.dw_dataset is not None:
+                    available_ids = st.session_state.dw_dataset.object_ids_
+                    id_available = current in available_ids
                 
+                # Automatically download if not available
                 if not id_available:
-                    st.warning(f"id_geohash '{current}' not available. Please download first.")
-                    if st.button("📥 Download", key="popup_download"):
-                        st.session_state.show_ts_popup = False
-                        st.rerun()
-                else:
-                    # Plot time series
-                    if st.session_state.dw_dataset is not None:
-                        try:
-                            fig = st.session_state.dw_dataset.plot_timeseries(current)
-                            st.pyplot(fig)
-                            plt.close(fig)
-                        except Exception as e:
-                            st.error(f"Error plotting time series: {e}")
+                    st.caption("Downloading...")
+                    try:
+                        downloader = EarthEngineDownloader(ee_auth=True)
+                        ds_downloaded = downloader.download_dw_monthly(
+                            vector_dataset=data_path_input,
+                            name_attribute=id_column,
+                            id_list=[current],
+                            years=list(range(2017, 2026)),
+                            months=[6, 7, 8, 9],
+                            date_list=None,
+                        )
+                        if ds_downloaded is not None:
+                            st.session_state.downloaded_ds = ds_downloaded
+                            st.session_state.dw_dataset = DWDataset(ds_downloaded)
+                            id_available = True
+                            st.rerun()
+                        else:
+                            st.error("Download returned no data.")
+                    except Exception as e:
+                        st.error(f"Error downloading data: {e}")
+                
+                # Plot time series
+                if st.session_state.dw_dataset is not None and id_available:
+                    try:
+                        fig = st.session_state.dw_dataset.plot_timeseries(current)
+                        st.pyplot(fig)
+                        plt.close(fig)
+                    except Exception as e:
+                        st.error(f"Error plotting time series: {e}")
                 
                 if st.button("Close", key="close_ts_popup"):
                     st.session_state.show_ts_popup = False
