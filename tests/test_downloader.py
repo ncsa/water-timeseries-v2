@@ -10,7 +10,7 @@ import unittest.mock as mock
 
 import pytest
 
-from water_timeseries.downloader import EarthEngineDownloader
+from water_timeseries.downloader import EarthEngineDownloader, setup_dates_from_options
 from water_timeseries.utils.spatial import filter_gdf_by_bbox
 
 # Path to test data
@@ -130,6 +130,66 @@ class TestSpatialFiltering:
 
         with pytest.raises(ValueError, match="At least one bbox parameter must be provided"):
             filter_gdf_by_bbox(gdf)
+
+
+class TestSetupDatesFromOptions:
+    """Test the setup_dates_from_options helper function."""
+
+    def test_date_list_valid_format(self):
+        """Test that date_list in YYYY-MM format is converted correctly."""
+        dates = setup_dates_from_options(date_list=['2017-06', '2018-07', '2019-08'])
+        assert dates == ['2017-06-01', '2018-07-01', '2019-08-01']
+
+    def test_date_list_single_date(self):
+        """Test date_list with a single date."""
+        dates = setup_dates_from_options(date_list=['2020-12'])
+        assert dates == ['2020-12-01']
+
+    def test_years_and_months(self):
+        """Test that years and months are combined correctly."""
+        dates = setup_dates_from_options(years=[2017, 2018], months=[6, 7])
+        assert dates == ['2017-06-01', '2017-07-01', '2018-06-01', '2018-07-01']
+
+    def test_years_and_months_defaults(self):
+        """Test that default years and months are applied."""
+        dates = setup_dates_from_options()
+        # Default years: 2017-2025, default months: 6,7,8,9
+        expected_years = list(range(2017, 2026))
+        expected_dates = []
+        for year in expected_years:
+            for month in [6, 7, 8, 9]:
+                expected_dates.append(f"{year}-{month:02d}-01")
+        assert dates == expected_dates
+
+    def test_date_list_and_years_raises_error(self):
+        """Test that providing both date_list and years raises ValueError."""
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            setup_dates_from_options(date_list=['2017-06'], years=[2017])
+
+    def test_date_list_and_months_raises_error(self):
+        """Test that providing both date_list and months raises ValueError."""
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            setup_dates_from_options(date_list=['2017-06'], months=[6])
+
+    def test_date_list_and_both_years_months_raises_error(self):
+        """Test that providing date_list with years AND months raises ValueError."""
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            setup_dates_from_options(date_list=['2017-06'], years=[2017], months=[6])
+
+    def test_only_years_raises_error(self):
+        """Test that providing only years (without months) raises ValueError."""
+        with pytest.raises(ValueError, match="both 'years' and 'months'"):
+            setup_dates_from_options(years=[2017])
+
+    def test_only_months_raises_error(self):
+        """Test that providing only months (without years) raises ValueError."""
+        with pytest.raises(ValueError, match="both 'years' and 'months'"):
+            setup_dates_from_options(months=[6])
+
+    def test_empty_date_list(self):
+        """Test that empty date_list raises ValueError."""
+        with pytest.raises(ValueError, match="both 'years' and 'months'"):
+            setup_dates_from_options(date_list=[])
 
 
 # Run tests
