@@ -181,10 +181,59 @@ Plot options:
 - **DWDataset**: Dynamic World land cover processor
 - **JRCDataset**: JRC water classification processor
 
+### Download
+
+- **EarthEngineDownloader**: Download data from Google Earth Engine
+
 ### Breakpoints
 
 - **SimpleBreakpoint**: Statistical breakpoint detection
 - **BeastBreakpoint**: Advanced RBEAST-based detection
+
+## Interactive Dashboard
+
+The package includes an interactive Streamlit dashboard for visualizing lake polygons and time series data.
+
+### Running the Dashboard
+
+```bash
+streamlit run src/water_timeseries/dashboard/app.py
+```
+
+### Features
+
+- **Map Viewer**: Interactive map displaying lake polygons from parquet files
+- **Hover Tooltips**: View attributes (id_geohash, Area_start_ha, Area_end_ha, NetChange_ha, NetChange_perc)
+- **Click Selection**: Click on a polygon to select it and view its time series
+- **Time Series Plot**: Automatic visualization of water extent over time
+- **Automatic Download**: If the selected lake's data is not in the cached dataset, it automatically downloads from Google Earth Engine
+- **Popup View**: Click "Open Time Series in Popup" for a larger view
+- **EE Project Config**: Set your Google Earth Engine project in the sidebar
+
+### Dashboard UI
+
+![Dashboard](../figures/dashboard.png)
+
+### Configuration
+
+The dashboard accepts two optional arguments:
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `data_path` | Path to parquet file with lake polygons | `tests/data/lake_polygons.parquet` |
+| `zarr_path` | Path to zarr file with cached time series data | `tests/data/lakes_dw_test.zarr` |
+
+Example custom paths:
+
+```python
+from water_timeseries.dashboard.map_viewer import create_app
+
+# With custom paths
+create_app(
+    data_path="/path/to/lakes.parquet",
+    zarr_path="/path/to/data.zarr"
+)
+```
 
 ## Documentation Links
 

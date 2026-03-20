@@ -282,6 +282,25 @@ def create_app(
     # Create sidebar for controls
     st.sidebar.header("Settings")
     
+    # Check EE_PROJECT environment variable
+    import os
+    default_ee_project = os.environ.get("EE_PROJECT", "")
+    
+    # EE Project input
+    ee_project = st.sidebar.text_input(
+        "Google Earth Engine Project",
+        value=default_ee_project,
+        placeholder="Enter your GEE project ID"
+    )
+    
+    # Button to set EE_PROJECT
+    if st.sidebar.button("Set EE Project"):
+        if ee_project:
+            os.environ["EE_PROJECT"] = ee_project
+            st.sidebar.success(f"EE_PROJECT set to: {ee_project}")
+        else:
+            st.sidebar.warning("Please enter a project ID")
+    
     # Data path input
     default_path = str(data_path)
     data_path_input = st.sidebar.text_input(
@@ -387,7 +406,7 @@ def create_app(
                 
                 # Download data for the specific geohash
                 try:
-                    # Create downloader
+                    # Create downloader with the project from environment
                     downloader = EarthEngineDownloader(ee_auth=True)
                     
                     # Download data for the specific geohash
