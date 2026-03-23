@@ -228,6 +228,9 @@ uv run water-timeseries breakpoint-analysis --help
 # Show plot-timeseries subcommand help
 uv run water-timeseries plot-timeseries --help
 
+# Show dashboard subcommand help
+uv run water-timeseries dashboard --help
+
 # Run breakpoint analysis
 uv run water-timeseries breakpoint-analysis data.zarr output.parquet
 
@@ -249,6 +252,12 @@ uv run water-timeseries plot-timeseries data.zarr --lake-id b7uefy0bvcrc --outpu
 
 # Save only (no popup window)
 uv run water-timeseries plot-timeseries data.zarr --lake-id b7uefy0bvcrc --output-figure plot.png --no-show
+
+# Launch the Streamlit dashboard (default port 8501)
+uv run water-timeseries dashboard
+
+# Launch dashboard on a custom port
+uv run water-timeseries dashboard --port 8502
 ```
 
 ### Using a Config File
@@ -303,10 +312,13 @@ The package includes an interactive Streamlit dashboard for visualizing lake pol
 ### Running the Dashboard
 
 ```bash
-# Install streamlit if not already installed
-pip install streamlit plotly
+# Launch via CLI (recommended)
+uv run water-timeseries dashboard
 
-# Run the dashboard
+# Or with a custom port
+uv run water-timeseries dashboard --port 8502
+
+# Alternative: Run directly with streamlit
 streamlit run src/water_timeseries/dashboard/app.py
 ```
 
