@@ -405,9 +405,23 @@ def create_app(
                     )
 
                     if ds_downloaded is not None:
-                        # Store and convert to DWDataset
+                        # Convert downloaded data to DWDataset
+                        downloaded_dataset = DWDataset(ds_downloaded)
+
+                        # Merge with existing cached data if available
+                        if st.session_state.dw_dataset is not None:
+                            try:
+                                st.session_state.dw_dataset = st.session_state.dw_dataset.merge(
+                                    downloaded_dataset, how="id_geohash"
+                                )
+                            except Exception as merge_e:
+                                # If merge fails, use downloaded data only
+                                st.sidebar.warning(f"Could not merge data: {merge_e}")
+                                st.session_state.dw_dataset = downloaded_dataset
+                        else:
+                            st.session_state.dw_dataset = downloaded_dataset
+
                         st.session_state.downloaded_ds = ds_downloaded
-                        st.session_state.dw_dataset = DWDataset(ds_downloaded)
                         id_available = True
                         st.rerun()
                     else:
@@ -421,8 +435,23 @@ def create_app(
             if st.session_state.dw_dataset is not None and id_available:
                 try:
                     fig = st.session_state.dw_dataset.plot_timeseries(current)
-                    # Display matplotlib figure in Streamlit
+                    
+                    # Save figure to bytes buffer for download
+                    from io import BytesIO
+                    img_buffer = BytesIO()
+                    fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
+                    img_buffer.seek(0)
+                    
+                    # Display and offer download
                     st.pyplot(fig)
+                    
+                    st.download_button(
+                        label="💾 Save Figure",
+                        data=img_buffer,
+                        file_name=f"timeseries_{current}.png",
+                        mime="image/png",
+                    )
+                    
                     plt.close(fig)  # Close figure to free memory
                 except Exception as e:
                     st.error(f"Error plotting time series: {e}")
@@ -481,7 +510,25 @@ def create_app(
                 if st.session_state.dw_dataset is not None and id_available:
                     try:
                         fig = st.session_state.dw_dataset.plot_timeseries(current)
+                        
+                        # Save figure to bytes buffer for download
+                        from io import BytesIO
+                        img_buffer = BytesIO()
+                        fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
+                        img_buffer.seek(0)
+                        
+                        # Display and offer download
                         st.pyplot(fig)
+                        
+                        col1, col2 = st.columns([1, 4])
+                        with col1:
+                            st.download_button(
+                                label="💾 Save Figure",
+                                data=img_buffer,
+                                file_name=f"timeseries_{current}.png",
+                                mime="image/png",
+                            )
+                        
                         plt.close(fig)
                     except Exception as e:
                         st.error(f"Error plotting time series: {e}")
