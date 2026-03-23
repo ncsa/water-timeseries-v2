@@ -317,7 +317,7 @@ class DWDataset(LakeDataset):
                 if len(breaks) > 0:
                     bp = breaks["date_break"].iloc[0]
                 else:
-                    bp=None
+                    bp = None
         else:
             bp = None
 
@@ -394,6 +394,7 @@ class JRCDataset(LakeDataset):
         df = self.ds.sel(id_geohash=id_geohash).load().to_dataframe().dropna().reset_index(drop=False)
         normalization_factor = df["area_data"].max()
 
+        # TODO: breaks are not visualized correctly
         if breakpoints is not None:
             breaks = breakpoints.calculate_break(self, object_id=id_geohash)
             if breaks is not None:

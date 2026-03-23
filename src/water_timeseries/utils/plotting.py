@@ -241,6 +241,16 @@ def plot_water_time_series_jrc(
             ax=ax1,
         )
 
+    # Add vertical line at first_break
+    if first_break is not None:
+        ax1.vlines(
+            pd.to_datetime(first_break),
+            ymin=0,
+            ymax=df_melt["value"].max(),
+            color="k",
+            ls="--",
+        )
+
     # create no data area
     ax1.fill_between(
         x=df["date"],
