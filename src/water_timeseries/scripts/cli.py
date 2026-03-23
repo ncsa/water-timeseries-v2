@@ -68,6 +68,45 @@ def setup_logging(logfile: Optional[str] = None, verbose: int = 0):
     print(f"Logging to file: {logfile} with level: {log_level}")  # Use print to avoid circular logging
 
 
+# Subcommand: dashboard
+@app.command(group="Visualization")
+def dashboard(
+    port: int = 8501,
+    logfile: Optional[str] = None,
+    verbose: int = 0,
+):
+    """Launch the Streamlit dashboard.
+
+    Args:
+        port: Port to run the dashboard on (default: 8501)
+        logfile: Path to log file
+        verbose: Verbosity level (-v for DEBUG)
+
+    Example usage:
+        water-timeseries dashboard
+        water-timeseries dashboard --port 8502
+    """
+    import subprocess
+    import sys
+
+    # Setup logging
+    setup_logging(logfile=logfile, verbose=verbose)
+
+    # Build streamlit command
+    cmd = [
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        str(Path(__file__).parent.parent / "dashboard" / "app.py"),
+        "--server.port",
+        str(port),
+    ]
+
+    logger.info(f"Starting dashboard with command: {' '.join(cmd)}")
+    subprocess.run(cmd)
+
+
 # Subcommand: breakpoint analysis
 @app.command(group="Analysis")
 def breakpoint_analysis(
