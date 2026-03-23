@@ -169,7 +169,7 @@ class LakeDataset:
         if how not in {"both", "date", "id_geohash"}:
             raise ValueError(f"Invalid merge strategy '{how}'. Must be 'both', 'date', or 'id_geohash'.")
 
-        if type(self) != type(other):
+        if type(self) is not type(other):
             raise TypeError(
                 f"Cannot merge {type(self).__name__} with {type(other).__name__}. Both datasets must be the same type."
             )

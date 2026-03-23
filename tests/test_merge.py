@@ -1,7 +1,6 @@
 """Tests for LakeDataset merge functionality."""
 
 import pytest
-import xarray as xr
 
 from water_timeseries.dataset import DWDataset, JRCDataset
 
@@ -160,8 +159,15 @@ class TestDWDatasetMerge:
 
         # Check all expected variables are present
         expected_vars = {
-            "water", "bare", "snow_and_ice", "trees", "grass",
-            "flooded_vegetation", "crops", "shrub_and_scrub", "built"
+            "water",
+            "bare",
+            "snow_and_ice",
+            "trees",
+            "grass",
+            "flooded_vegetation",
+            "crops",
+            "shrub_and_scrub",
+            "built",
         }
         assert set(merged.ds.data_vars) == expected_vars
 

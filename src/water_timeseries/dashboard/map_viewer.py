@@ -323,7 +323,7 @@ def create_app(
         viewer = MapViewer(parquet_path=data_path_input, id_column=id_column, zoom=zoom_level)
 
         # Render the map
-        selected = viewer.render()
+        selected = viewer.render()  # noqa: F841
 
         # Display selected features in sidebar
         st.sidebar.divider()
