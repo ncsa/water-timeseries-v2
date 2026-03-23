@@ -314,7 +314,10 @@ class DWDataset(LakeDataset):
         if breakpoints is not None:
             breaks = breakpoints.calculate_break(self, object_id=id_geohash)
             if breaks is not None:
-                bp = breaks["date_break"].iloc[0]
+                if len(breaks) > 0:
+                    bp = breaks["date_break"].iloc[0]
+                else:
+                    bp=None
         else:
             bp = None
 
