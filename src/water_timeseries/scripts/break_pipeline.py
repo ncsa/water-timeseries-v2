@@ -401,10 +401,14 @@ class BreakpointPipeline:
                     log_to_driver=False,
                 )
             if self.logger:
-                logger.info(f"Starting parallel processing with Ray using {self.n_jobs} jobs (backend={self.parallel_backend})")
+                logger.info(
+                    f"Starting parallel processing with Ray using {self.n_jobs} jobs (backend={self.parallel_backend})"
+                )
         elif use_parallel and (self.parallel_backend == "joblib"):
             if self.logger:
-                logger.info(f"Starting parallel processing with joblib using {self.n_jobs} jobs (backend={self.parallel_backend})")
+                logger.info(
+                    f"Starting parallel processing with joblib using {self.n_jobs} jobs (backend={self.parallel_backend})"
+                )
         else:
             if self.logger:
                 logger.info(f"Starting sequential processing (n_jobs={self.n_jobs}, backend={self.parallel_backend})")
@@ -436,7 +440,10 @@ class BreakpointPipeline:
                 pbar = tqdm(total=len(self.chunked_ds), desc="Processing chunks", unit="chunk")
 
                 # Submit all tasks
-                futures = [process_chunk_remote.remote(chunk, self.water_dataset_type, self.break_method) for chunk in self.chunked_ds]
+                futures = [
+                    process_chunk_remote.remote(chunk, self.water_dataset_type, self.break_method)
+                    for chunk in self.chunked_ds
+                ]
                 # Collect results with progress updates
                 for future in futures:
                     result = ray.get(future)
@@ -489,6 +496,10 @@ def main(
     bbox_south: float = typer.Option(-90, "--bbox-south", help="Minimum latitude (south) in degrees"),
     bbox_east: float = typer.Option(180, "--bbox-east", help="Maximum longitude (east) in degrees"),
     bbox_north: float = typer.Option(90, "--bbox-north", help="Maximum latitude (north) in degrees"),
+    output_geometry: bool = typer.Option(True, "--output-geometry", help="Include geometry in output"),
+    output_geometry_all: bool = typer.Option(
+        False, "--output-geometry-all", help="Include geometry for all IDs (not just those with breaks)"
+    ),
 ):
     """Run Rbeast break detection on water dataset.
 
@@ -514,6 +525,8 @@ def main(
     bbox_south = bbox_south if bbox_south != -90 else config_dict.get("bbox_south", bbox_south)
     bbox_east = bbox_east if bbox_east != 180 else config_dict.get("bbox_east", bbox_east)
     bbox_north = bbox_north if bbox_north != 90 else config_dict.get("bbox_north", bbox_north)
+    output_geometry = config_dict.get("output_geometry", output_geometry)
+    output_geometry_all = config_dict.get("output_geometry_all", output_geometry_all)
 
     # Validate required arguments
     if water_dataset_file is None or output_file is None:
@@ -536,6 +549,8 @@ def main(
         bbox_south=bbox_south,
         bbox_east=bbox_east,
         bbox_north=bbox_north,
+        output_geometry=output_geometry,
+        output_geometry_all=output_geometry_all,
         logger=logger,
     )
     pipeline.run_breaks()
@@ -557,6 +572,8 @@ def main(
         "bbox_south": bbox_south,
         "bbox_east": bbox_east,
         "bbox_north": bbox_north,
+        "output_geometry": output_geometry,
+        "output_geometry_all": output_geometry_all,
     }
     with open(config_output_path, "w") as f:
         yaml.dump(used_config, f, default_flow_style=False)
