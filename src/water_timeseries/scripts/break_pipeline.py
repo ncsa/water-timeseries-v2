@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
+import joblib
 import pandas as pd
 import ray
 import typer
@@ -77,6 +78,19 @@ def process_chunk_remote(chunk: xr.Dataset, water_dataset_type: str) -> pd.DataF
     return bp.calculate_breaks_batch(ds)
 
 
+def process_chunk(chunk: xr.Dataset, water_dataset_type: str) -> pd.DataFrame:
+    """Process a single chunk (for use with joblib)."""
+    if water_dataset_type == "dynamic_world":
+        ds = DWDataset(chunk)
+    elif water_dataset_type == "jrc":
+        ds = JRCDataset(chunk)
+    else:
+        raise ValueError(f"Unknown water dataset type: {water_dataset_type}")
+
+    bp = BeastBreakpoint()
+    return bp.calculate_breaks_batch(ds)
+
+
 class BreakpointPipeline:
     """Pipeline for running Rbeast break detection on water dataset time series.
 
@@ -89,6 +103,7 @@ class BreakpointPipeline:
         output_file: Path to output parquet file for results.
         vector_dataset_file: Optional path to vector dataset (gpkg, shp, geojson).
         chunksize: Number of IDs per chunk (default: 100).
+        parallel_backend: Parallelization backend (default: joblib)
         n_jobs: Number of parallel jobs for Ray (default: 1, sequential).
         min_chunksize: Minimum chunk size (default: 10).
         bbox_west: Minimum longitude for bbox filter.
@@ -105,6 +120,7 @@ class BreakpointPipeline:
         vector_dataset_file: Optional[str] = None,
         n_chunks: int = 1,
         chunksize: int = 100,
+        parallel_backend: str = "joblib",
         n_jobs: int = 1,
         logger: Optional[logger] = None,
         min_chunksize: int = 10,
@@ -121,6 +137,7 @@ class BreakpointPipeline:
         self.n_chunks = n_chunks
         self.chunksize = chunksize
         self.n_jobs = n_jobs
+        self.parallel_backend = parallel_backend
         self.min_chunksize = min_chunksize
         self.bbox_west = bbox_west
         self.bbox_south = bbox_south
@@ -323,7 +340,7 @@ class BreakpointPipeline:
         use_parallel = self.n_jobs > 1
 
         # Initialize Ray if using parallel processing
-        if use_parallel:
+        if use_parallel and (self.parallel_backend == "ray"):
             if not ray.is_initialized():
                 # Copy environment and remove VIRTUAL_ENV to avoid the warning
                 env_vars = os.environ.copy()
@@ -346,9 +363,12 @@ class BreakpointPipeline:
                 )
             if self.logger:
                 self.logger.info(f"Starting parallel processing with Ray using {self.n_jobs} jobs")
+        elif use_parallel and (self.parallel_backend == "joblib"):
+            if self.logger:
+                self.logger.info(f"Starting parallel processing with joblib using {self.n_jobs} jobs")
         else:
             if self.logger:
-                self.logger.info("Starting sequential processing (n_jobs=1)")
+                self.logger.info(f"Starting sequential processing (n_jobs={self.n_jobs})")
 
         # load data
         break_list = []
@@ -366,12 +386,21 @@ class BreakpointPipeline:
             if use_parallel:
                 # Parallel processing with Ray
                 # Submit all tasks
-                futures = [process_chunk_remote.remote(chunk, self.water_dataset_type) for chunk in self.chunked_ds]
-                # Collect results with progress updates
-                for future in futures:
-                    result = ray.get(future)
-                    break_list.append(result)
-                    progress.advance(task)
+                if self.parallel_backend == "ray":
+                    futures = [process_chunk_remote.remote(chunk, self.water_dataset_type) for chunk in self.chunked_ds]
+                    # Collect results with progress updates
+                    for future in futures:
+                        result = ray.get(future)
+                        break_list.append(result)
+                        progress.advance(task)
+                elif self.parallel_backend == "joblib":
+                    # Parallel processing with joblib
+                    break_list = joblib.Parallel(n_jobs=self.n_jobs)(
+                        joblib.delayed(process_chunk)(chunk, self.water_dataset_type) for chunk in self.chunked_ds
+                    )
+                    # All results collected, update progress
+                    progress.update(task, completed=len(self.chunked_ds))
+
             else:
                 # Sequential processing
                 for chunk in self.chunked_ds:
