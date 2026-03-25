@@ -1,6 +1,7 @@
 # imports
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -10,8 +11,6 @@ import ray
 import typer
 import xarray as xr
 import yaml
-import threading
-
 from loguru import logger
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRemainingColumn
 from tqdm import tqdm
