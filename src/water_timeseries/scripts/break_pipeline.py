@@ -8,7 +8,6 @@ from typing import Optional
 import joblib
 import pandas as pd
 import ray
-import typer
 import xarray as xr
 import yaml
 from loguru import logger
@@ -58,11 +57,6 @@ def merge_config_with_args(config: dict, **kwargs) -> dict:
         if value is not None:
             result[key] = value
     return result
-
-
-# Logger configuration - controlled by the main CLI's setup_logging()
-# For standalone usage, logging will not be configured
-app = typer.Typer(help="Run Rbeast break detection on Dynamic World lakes")
 
 
 @ray.remote
@@ -477,108 +471,4 @@ class BreakpointPipeline:
             self.logger.info(f"Processed {len(self.breaks)} breakpoints")
 
 
-@app.command()
-def main(
-    config_file: Path = typer.Option(None, "--config", "-C", help="Path to config YAML/JSON file"),
-    water_dataset_file: str = typer.Option(
-        None, "--water-dataset-file", help="Path to water dataset file (zarr or parquet format)"
-    ),
-    output_file: str = typer.Option(None, "--output-file", help="Path to output parquet file"),
-    vector_dataset_file: str = typer.Option(
-        None, "--vector-dataset-file", "-v", help="Path to vector dataset file (gpkg, shp, geojson)"
-    ),
-    chunksize: int = typer.Option(100, "--chunksize", "-c", help="Number of IDs per chunk"),
-    parallel_backend: str = typer.Option(None, "--parallel-backend", help="Parallel backend: ray or joblib"),
-    break_method: str = typer.Option(None, "--break-method", help="Breakpoint detection method: beast or simple"),
-    n_jobs: int = typer.Option(1, "--n-jobs", "-j", help="Number of parallel jobs (use >1 for Ray parallelization)"),
-    min_chunksize: int = typer.Option(10, "--min-chunksize", "-m", help="Minimum chunk size"),
-    bbox_west: float = typer.Option(-180, "--bbox-west", help="Minimum longitude (west) in degrees"),
-    bbox_south: float = typer.Option(-90, "--bbox-south", help="Minimum latitude (south) in degrees"),
-    bbox_east: float = typer.Option(180, "--bbox-east", help="Maximum longitude (east) in degrees"),
-    bbox_north: float = typer.Option(90, "--bbox-north", help="Maximum latitude (north) in degrees"),
-    output_geometry: bool = typer.Option(True, "--output-geometry", help="Include geometry in output"),
-    output_geometry_all: bool = typer.Option(
-        False, "--output-geometry-all", help="Include geometry for all IDs (not just those with breaks)"
-    ),
-):
-    """Run Rbeast break detection on water dataset.
 
-    Example usage:
-        uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet
-        uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet --chunksize 50
-        uv run water-timeseries-bp data/lakes_dw_test.zarr output/breaks.parquet -c 50 -j 4
-        uv run water-timeseries-bp -C config.yaml
-    """
-    # Load config file if provided
-    config_dict = load_config(config_file) if config_file else {}
-
-    # Get values from config, with CLI args taking priority
-    water_dataset_file = water_dataset_file or config_dict.get("water_dataset_file")
-    output_file = output_file or config_dict.get("output_file")
-    vector_dataset_file = vector_dataset_file or config_dict.get("vector_dataset_file")
-    chunksize = chunksize if chunksize != 100 else config_dict.get("chunksize", chunksize)
-    parallel_backend = parallel_backend or config_dict.get("parallel_backend", "ray")
-    break_method = break_method or config_dict.get("break_method", "beast")
-    n_jobs = n_jobs if n_jobs != 1 else config_dict.get("n_jobs", n_jobs)
-    min_chunksize = min_chunksize if min_chunksize != 10 else config_dict.get("min_chunksize", min_chunksize)
-    bbox_west = bbox_west if bbox_west != -180 else config_dict.get("bbox_west", bbox_west)
-    bbox_south = bbox_south if bbox_south != -90 else config_dict.get("bbox_south", bbox_south)
-    bbox_east = bbox_east if bbox_east != 180 else config_dict.get("bbox_east", bbox_east)
-    bbox_north = bbox_north if bbox_north != 90 else config_dict.get("bbox_north", bbox_north)
-    output_geometry = config_dict.get("output_geometry", output_geometry)
-    output_geometry_all = config_dict.get("output_geometry_all", output_geometry_all)
-
-    # Validate required arguments
-    if water_dataset_file is None or output_file is None:
-        typer.echo(
-            "Error: water-dataset-file and output-file are required. Use --help for usage information.", err=True
-        )
-        raise typer.Exit(code=1)
-
-    # Run the pipeline
-    pipeline = BreakpointPipeline(
-        water_dataset_file=water_dataset_file,
-        output_file=output_file,
-        vector_dataset_file=vector_dataset_file,
-        chunksize=chunksize,
-        parallel_backend=parallel_backend,
-        break_method=break_method,
-        n_jobs=n_jobs,
-        min_chunksize=min_chunksize,
-        bbox_west=bbox_west,
-        bbox_south=bbox_south,
-        bbox_east=bbox_east,
-        bbox_north=bbox_north,
-        output_geometry=output_geometry,
-        output_geometry_all=output_geometry_all,
-        logger=logger,
-    )
-    pipeline.run_breaks()
-    pipeline.save_to_parquet()
-
-    # Save the used parameters to a config file next to the output file
-    output_path = Path(output_file)
-    config_output_path = output_path.with_suffix(".yaml")
-    used_config = {
-        "water_dataset_file": water_dataset_file,
-        "output_file": output_file,
-        "vector_dataset_file": vector_dataset_file,
-        "chunksize": chunksize,
-        "parallel_backend": parallel_backend,
-        "break_method": break_method,
-        "n_jobs": pipeline.n_jobs,  # Use actual n_jobs (may have been reduced)
-        "min_chunksize": min_chunksize,
-        "bbox_west": bbox_west,
-        "bbox_south": bbox_south,
-        "bbox_east": bbox_east,
-        "bbox_north": bbox_north,
-        "output_geometry": output_geometry,
-        "output_geometry_all": output_geometry_all,
-    }
-    with open(config_output_path, "w") as f:
-        yaml.dump(used_config, f, default_flow_style=False)
-    logger.info(f"Saved used parameters to {config_output_path}")
-
-
-if __name__ == "__main__":
-    app()
