@@ -13,6 +13,15 @@ import xarray as xr
 from water_timeseries.dataset import DWDataset
 from water_timeseries.downloader import EarthEngineDownloader
 from water_timeseries.utils.io import load_vector_dataset
+from water_timeseries.utils.visualization import (
+    build_hover_template,
+    DEFAULT_HOVER_COLUMNS,
+    get_colorbar_config,
+    get_z_values_for_coloring,
+    gdf_to_geojson_feature_collection,
+    MAP_STYLING,
+    prepare_custom_data_for_plotly,
+)
 
 
 class MapViewer:
@@ -47,14 +56,8 @@ class MapViewer:
         """
         self.geometry_column = geometry_column
         self.id_column = id_column
-        # Default hover columns if not specified
-        self.hover_columns = hover_columns or [
-            "id_geohash",
-            "Area_start_ha",
-            "Area_end_ha",
-            "NetChange_ha",
-            "NetChange_perc",
-        ]
+        # Default hover columns if not specified (use from visualization module)
+        self.hover_columns = hover_columns or DEFAULT_HOVER_COLUMNS
         self.zoom = zoom
         self.map_center = map_center
 
@@ -113,29 +116,8 @@ class MapViewer:
         plot_df = self.gdf[cols].copy()
 
         # Convert all columns to strings and handle NaN/None/arrays
-        for col in plot_df.columns:
-            col_data = []
-            for val in plot_df[col]:
-                if pd.isna(val):
-                    col_data.append("")
-                elif isinstance(val, (list, tuple, set, bytes)):
-                    col_data.append(str(list(val)))
-                else:
-                    col_data.append(str(val))
-            plot_df[col] = col_data
-
+        # This is handled by prepare_custom_data_for_plotly when rendering
         return plot_df
-
-    def _gdf_to_geojson(self, gdf: gpd.GeoDataFrame) -> dict:
-        """Convert GeoDataFrame to GeoJSON feature collection.
-
-        Args:
-            gdf: GeoDataFrame to convert.
-
-        Returns:
-            GeoJSON feature collection dictionary.
-        """
-        return gdf.__geo_interface__
 
     def render(self) -> Optional[str]:
         """Render the interactive map in Streamlit.
@@ -166,31 +148,23 @@ class MapViewer:
         # Build hover fields list
         hover_fields = [col for col in plot_df.columns if col != self.id_column]
 
-        # Create hover template
-        hover_template = "<b>" + self.id_column + ": %{customdata[0]}</b><br>"
-        for i, field in enumerate(hover_fields):
-            hover_template += f"{field}: %{{customdata[{i + 1}]}}<br>"
-        hover_template += "<extra></extra>"
+        # Use utility function to build hover template
+        hover_template = build_hover_template(self.id_column, hover_fields)
 
-        # Prepare custom data for hover
-        custom_data = []
-        hover_cols = [self.id_column] + hover_fields
-        for col in hover_cols:
-            custom_data.append(plot_df[col].tolist())
+        # Use utility function to prepare custom data
+        custom_data = prepare_custom_data_for_plotly(plot_df, self.id_column, hover_fields)
 
-        # Transpose to get rows as tuples
-        custom_data = list(zip(*custom_data))
+        # Use utility function to convert to GeoJSON
+        geojson = gdf_to_geojson_feature_collection(valid_gdf)
 
-        # Convert to GeoJSON
-        geojson = self._gdf_to_geojson(valid_gdf)
-
-        # Get NetChange_perc values for coloring (clip to -50 to +50 range for better visualization)
-        if "NetChange_perc" in valid_gdf.columns:
-            z_values = valid_gdf["NetChange_perc"].fillna(0).clip(-50, 50).tolist()
-        else:
-            z_values = [1] * len(valid_gdf)
+        # Use utility function to get z-values for coloring
+        z_values = get_z_values_for_coloring(valid_gdf, "NetChange_perc", clip_range=(-50, 50))
 
         # Create the map using Plotly graph_objects for polygon rendering
+        # Get styling from visualization module
+        unselected_style = MAP_STYLING["unselected"]
+        colorbar_config = get_colorbar_config("NetChange %", "RdYlBu", zmid=0)
+
         fig = go.Figure(
             go.Choroplethmapbox(
                 geojson=geojson,
@@ -198,13 +172,13 @@ class MapViewer:
                 z=z_values,
                 customdata=custom_data,
                 hovertemplate=hover_template,
-                marker_opacity=0.7,
-                marker_line_width=1,  # Thin outline for unselected
-                marker_line_color="gray",
-                colorscale="RdYlBu",  # Red-Yellow-Blue: red for negative, blue for positive
-                zmid=0,  # Yellow at 0
-                showscale=True,
-                colorbar_title="NetChange %",
+                marker_opacity=unselected_style["opacity"],
+                marker_line_width=unselected_style["line_width"],
+                marker_line_color=unselected_style["line_color"],
+                colorscale=colorbar_config["colorscale"],
+                zmid=colorbar_config.get("zmid"),
+                showscale=colorbar_config["showscale"],
+                colorbar_title=colorbar_config["colorbar_title"],
             )
         )
 
@@ -214,14 +188,14 @@ class MapViewer:
         if selected_geohash and selected_geohash in valid_gdf[self.id_column].values:
             # Get the selected feature
             selected_feature = valid_gdf[valid_gdf[self.id_column] == selected_geohash]
-            selected_geojson = self._gdf_to_geojson(selected_feature)
+            selected_geojson = gdf_to_geojson_feature_collection(selected_feature)
             selected_idx = valid_gdf[valid_gdf[self.id_column] == selected_geohash].index.tolist()
 
-            # Get the z value for selected feature
-            if "NetChange_perc" in selected_feature.columns:
-                selected_z = selected_feature["NetChange_perc"].fillna(0).clip(-50, 50).tolist()
-            else:
-                selected_z = [1] * len(selected_feature)
+            # Use utility to get z-values for selected feature
+            selected_z = get_z_values_for_coloring(selected_feature, "NetChange_perc", clip_range=(-50, 50))
+
+            # Get styling from visualization module
+            selected_style = MAP_STYLING["selected"]
 
             # Add highlight layer with slightly thicker and darker outline
             fig.add_trace(
@@ -229,9 +203,9 @@ class MapViewer:
                     geojson=selected_geojson,
                     locations=selected_idx,
                     z=selected_z,
-                    marker_opacity=0.8,
-                    marker_line_width=2,  # Slightly thicker for selected
-                    marker_line_color="black",  # Darker outline to highlight
+                    marker_opacity=selected_style["opacity"],
+                    marker_line_width=selected_style["line_width"],
+                    marker_line_color=selected_style["line_color"],
                     colorscale="RdYlBu",
                     zmid=0,
                     showscale=False,
