@@ -324,6 +324,15 @@ def create_app(
     # Zoom level
     zoom_level = st.sidebar.slider("Initial Zoom Level", min_value=1, max_value=20, value=10)
 
+    # Plotting mode selection (static vs dynamic/interactive)
+    is_interactive = st.sidebar.toggle(
+        "Interactive Plotting",
+        value=False,
+        help="Enable interactive Plotly plots (hover for details, zoom, pan)",
+    )
+    if is_interactive:
+        st.sidebar.caption("🖱️ Interactive mode enabled - hover to see values, zoom & pan available")
+
     # Initialize dataset in session state if not already
     if "dw_dataset" not in st.session_state:
         st.session_state.dw_dataset = None
@@ -448,26 +457,40 @@ def create_app(
             # Plot time series if available
             if st.session_state.dw_dataset is not None and id_available:
                 try:
-                    fig = st.session_state.dw_dataset.plot_timeseries(current)
+                    # Use interactive or static plotting based on toggle
+                    if is_interactive:
+                        fig = st.session_state.dw_dataset.plot_timeseries_interactive(current)
+                        st.plotly_chart(fig, use_container_width=True)
 
-                    # Save figure to bytes buffer for download
-                    from io import BytesIO
+                        # Convert figure to HTML for download
+                        html_buffer = fig.to_html(full_html=False, include_plotlyjs="cdn")
+                        st.download_button(
+                            label="💾 Save Interactive Plot (HTML)",
+                            data=html_buffer,
+                            file_name=f"timeseries_{current}.html",
+                            mime="text/html",
+                        )
+                    else:
+                        fig = st.session_state.dw_dataset.plot_timeseries(current)
 
-                    img_buffer = BytesIO()
-                    fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
-                    img_buffer.seek(0)
+                        # Save figure to bytes buffer for download
+                        from io import BytesIO
 
-                    # Display and offer download
-                    st.pyplot(fig)
+                        img_buffer = BytesIO()
+                        fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
+                        img_buffer.seek(0)
 
-                    st.download_button(
-                        label="💾 Save Figure",
-                        data=img_buffer,
-                        file_name=f"timeseries_{current}.png",
-                        mime="image/png",
-                    )
+                        # Display and offer download
+                        st.pyplot(fig)
 
-                    plt.close(fig)  # Close figure to free memory
+                        st.download_button(
+                            label="💾 Save Figure",
+                            data=img_buffer,
+                            file_name=f"timeseries_{current}.png",
+                            mime="image/png",
+                        )
+
+                        plt.close(fig)  # Close matplotlib figure
 
                     # ============================================
                     # Timelapse Section
@@ -589,28 +612,42 @@ def create_app(
                 # Plot time series
                 if st.session_state.dw_dataset is not None and id_available:
                     try:
-                        fig = st.session_state.dw_dataset.plot_timeseries(current)
+                        # Use interactive or static plotting based on toggle
+                        if is_interactive:
+                            fig = st.session_state.dw_dataset.plot_timeseries_interactive(current)
+                            st.plotly_chart(fig, use_container_width=True)
 
-                        # Save figure to bytes buffer for download
-                        from io import BytesIO
-
-                        img_buffer = BytesIO()
-                        fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
-                        img_buffer.seek(0)
-
-                        # Display and offer download
-                        st.pyplot(fig)
-
-                        col1, col2 = st.columns([1, 4])
-                        with col1:
+                            # Convert figure to HTML for download
+                            html_buffer = fig.to_html(full_html=False, include_plotlyjs="cdn")
                             st.download_button(
-                                label="💾 Save Figure",
-                                data=img_buffer,
-                                file_name=f"timeseries_{current}.png",
-                                mime="image/png",
+                                label="💾 Save Interactive Plot (HTML)",
+                                data=html_buffer,
+                                file_name=f"timeseries_{current}.html",
+                                mime="text/html",
                             )
+                        else:
+                            fig = st.session_state.dw_dataset.plot_timeseries(current)
 
-                        plt.close(fig)
+                            # Save figure to bytes buffer for download
+                            from io import BytesIO
+
+                            img_buffer = BytesIO()
+                            fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
+                            img_buffer.seek(0)
+
+                            # Display and offer download
+                            st.pyplot(fig)
+
+                            col1, col2 = st.columns([1, 4])
+                            with col1:
+                                st.download_button(
+                                    label="💾 Save Figure",
+                                    data=img_buffer,
+                                    file_name=f"timeseries_{current}.png",
+                                    mime="image/png",
+                                )
+
+                            plt.close(fig)  # Close matplotlib figure
                     except Exception as e:
                         st.error(f"Error plotting time series: {e}")
 
