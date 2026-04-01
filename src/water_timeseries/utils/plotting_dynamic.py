@@ -258,6 +258,17 @@ def plot_water_time_series_jrc_interactive(
     # Add secondary y-axis for normalized values
     if normalization_factor is not None:
         fig.update_yaxes(title="Relative Area [%]", secondary_y=True, range=[0, 100])
+        fig.add_trace(
+            go.Scatter(
+                x=[],
+                y=[],
+                name="Normalized",
+                mode="lines",
+                line=dict(color="gray", width=1, dash="dot"),
+                showlegend=False,
+            ),
+            secondary_y=True,
+        )
 
     # Update x-axis to show years nicely
     fig.update_xaxes(

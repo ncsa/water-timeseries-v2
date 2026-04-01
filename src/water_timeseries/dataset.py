@@ -296,9 +296,21 @@ class DWDataset(LakeDataset):
         """Mask invalid data based on quality criteria.
 
         Removes observations where data quality is poor (high no-data area) or
-        where snow/ice coverage is excessive, which indicates poor classification.
+        where snow/ice coverage is excessive (more than 5%), which indicates poor classification.
         """
-        pass
+        ds = self.ds_normalized
+        # Mask where no-data area > 0
+        mask_nodata = ds["area_nodata"] <= 0
+        # Mask where snow/ice > 5% (indicates poor classification)
+        mask_snow = ds["snow_and_ice"] <= 0.05
+        # Combine masks
+        mask = mask_nodata & mask_snow
+
+        self.ds = self.ds.where(mask)
+        self.ds_normalized = self.ds_normalized.where(mask)
+
+        self.ds_ismasked_ = True
+        self.ds_normalized_ismasked_ = True
 
     def create_timelapse(
         self,
