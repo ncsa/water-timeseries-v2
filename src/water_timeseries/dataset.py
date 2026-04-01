@@ -294,44 +294,7 @@ class DWDataset(LakeDataset):
         Removes observations where data quality is poor (high no-data area) or
         where snow/ice coverage is excessive, which indicates poor classification.
         """
-        ds = self.ds_normalized
-        mask = (ds["area_nodata"] <= 0) & (ds["snow_and_ice"] < 0.05)
-        self.ds = self.ds.where(mask)
-        self.ds_normalized = self.ds_normalized.where(mask)
-
-        self.ds_ismasked_ = True
-        self.ds_normalized_ismasked_ = True
-
-    def plot_timeseries(self, id_geohash: str, breakpoints=None) -> plt.Figure:
-        """Plot the time series for a specific geohash.
-
-        Args:
-            id_geohash (str): The geohash identifier for the location.
-            breakpoints (BreakpointMethod, optional): Breakpoint detection method to use.
-        """
-        # self._normalize_ds()
-        df = self.ds.sel(id_geohash=id_geohash).load().to_dataframe().dropna()
-        df_plot = prepare_data_for_plot_dw(df, group_vegetation=True)
-        normalization_factor = df["area_data"].max()
-
-        if breakpoints is not None:
-            breaks = breakpoints.calculate_break(self, object_id=id_geohash)
-            if breaks is not None:
-                if len(breaks) > 0:
-                    bp = breaks["date_break"].iloc[0]
-                else:
-                    bp = None
-        else:
-            bp = None
-
-        figure = plot_water_time_series_dw(
-            df_plot,
-            first_break=bp,
-            normalization_factor=normalization_factor,
-            lake_id=id_geohash,
-        )
-
-        return figure
+        pass
 
     def create_timelapse(
         self,
@@ -384,6 +347,37 @@ class DWDataset(LakeDataset):
             dimensions=dimensions,
             overwrite_exists=overwrite_exists,
         )
+
+    def plot_timeseries(self, id_geohash: str, breakpoints=None) -> plt.Figure:
+        """Plot the time series for a specific geohash.
+
+        Args:
+            id_geohash (str): The geohash identifier for the location.
+            breakpoints (BreakpointMethod, optional): Breakpoint detection method to use.
+        """
+        # self._normalize_ds()
+        df = self.ds.sel(id_geohash=id_geohash).load().to_dataframe().dropna()
+        df_plot = prepare_data_for_plot_dw(df, group_vegetation=True)
+        normalization_factor = df["area_data"].max()
+
+        if breakpoints is not None:
+            breaks = breakpoints.calculate_break(self, object_id=id_geohash)
+            if breaks is not None:
+                if len(breaks) > 0:
+                    bp = breaks["date_break"].iloc[0]
+                else:
+                    bp = None
+        else:
+            bp = None
+
+        figure = plot_water_time_series_dw(
+            df_plot,
+            first_break=bp,
+            normalization_factor=normalization_factor,
+            lake_id=id_geohash,
+        )
+
+        return figure
 
 
 class JRCDataset(LakeDataset):

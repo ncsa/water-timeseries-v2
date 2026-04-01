@@ -184,21 +184,60 @@ class MapViewer:
         # Convert to GeoJSON
         geojson = self._gdf_to_geojson(valid_gdf)
 
+        # Get NetChange_perc values for coloring (clip to -50 to +50 range for better visualization)
+        if "NetChange_perc" in valid_gdf.columns:
+            z_values = valid_gdf["NetChange_perc"].fillna(0).clip(-50, 50).tolist()
+        else:
+            z_values = [1] * len(valid_gdf)
+
         # Create the map using Plotly graph_objects for polygon rendering
         fig = go.Figure(
             go.Choroplethmapbox(
                 geojson=geojson,
                 locations=valid_gdf.index.tolist(),
-                z=[1] * len(valid_gdf),  # Dummy value for coloring
+                z=z_values,
                 customdata=custom_data,
                 hovertemplate=hover_template,
-                marker_opacity=0.5,
-                marker_line_width=1,
-                marker_line_color="blue",
-                colorscale=[[0, "blue"], [1, "blue"]],
-                showscale=False,
+                marker_opacity=0.7,
+                marker_line_width=1,  # Thin outline for unselected
+                marker_line_color="gray",
+                colorscale="RdYlBu",  # Red-Yellow-Blue: red for negative, blue for positive
+                zmid=0,  # Yellow at 0
+                showscale=True,
+                colorbar_title="NetChange %",
             )
         )
+
+        # Add a second layer to highlight selected polygon with slightly thicker/darker outline
+        # This layer will be updated when selection changes
+        selected_geohash = st.session_state.get("selected_geohash")
+        if selected_geohash and selected_geohash in valid_gdf[self.id_column].values:
+            # Get the selected feature
+            selected_feature = valid_gdf[valid_gdf[self.id_column] == selected_geohash]
+            selected_geojson = self._gdf_to_geojson(selected_feature)
+            selected_idx = valid_gdf[valid_gdf[self.id_column] == selected_geohash].index.tolist()
+
+            # Get the z value for selected feature
+            if "NetChange_perc" in selected_feature.columns:
+                selected_z = selected_feature["NetChange_perc"].fillna(0).clip(-50, 50).tolist()
+            else:
+                selected_z = [1] * len(selected_feature)
+
+            # Add highlight layer with slightly thicker and darker outline
+            fig.add_trace(
+                go.Choroplethmapbox(
+                    geojson=selected_geojson,
+                    locations=selected_idx,
+                    z=selected_z,
+                    marker_opacity=0.8,
+                    marker_line_width=2,  # Slightly thicker for selected
+                    marker_line_color="black",  # Darker outline to highlight
+                    colorscale="RdYlBu",
+                    zmid=0,
+                    showscale=False,
+                    hoverinfo="skip",
+                )
+            )
 
         # Update layout
         fig.update_layout(
@@ -493,7 +532,9 @@ def create_app(
                                             mime="image/gif",
                                         )
                                 else:
-                                    st.info("Timelapse was skipped (file already exists). Set overwrite_exists=True to regenerate.")
+                                    st.info(
+                                        "Timelapse was skipped (file already exists). Set overwrite_exists=True to regenerate."
+                                    )
 
                             except Exception as e:
                                 st.error(f"Error creating timelapse: {e}")
