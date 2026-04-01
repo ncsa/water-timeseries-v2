@@ -1,5 +1,6 @@
 """Map Viewer dashboard component using Streamlit and Plotly."""
 
+from io import BytesIO
 from pathlib import Path
 from typing import List, Optional
 
@@ -326,13 +327,34 @@ def create_app(
 
         # Display selected features in sidebar
         st.sidebar.divider()
-        st.sidebar.subheader("Selected Features")
+        st.sidebar.subheader("Previously Selected Features")
 
         clicked = viewer.get_clicked_features()
+
+        # Create a dropdown for selecting from previously clicked features
         if clicked:
-            st.sidebar.write("Clicked id_geohash values:")
-            for i, geohash in enumerate(clicked):
-                st.sidebar.code(geohash)
+            # Reverse to show latest clicked at the top
+            options = list(reversed(clicked))
+            current = viewer.get_selected_geohash()
+
+            # Set default index based on current selection
+            if current and current in options:
+                default_idx = options.index(current)
+            else:
+                default_idx = 0
+
+            selected_option = st.sidebar.selectbox(
+                "Previously clicked lakes:",
+                options,
+                index=default_idx,
+                label_visibility="collapsed",
+                help="Select a previously clicked lake",
+            )
+
+            # Update selection based on dropdown choice
+            if selected_option != st.session_state.selected_geohash:
+                st.session_state.selected_geohash = selected_option
+                st.rerun()
         else:
             st.sidebar.info("No features clicked yet. Click on a feature to select it.")
 
@@ -444,8 +466,6 @@ def create_app(
                         fig = st.session_state.dw_dataset.plot_timeseries(current)
 
                         # Save figure to bytes buffer for download
-                        from io import BytesIO
-
                         img_buffer = BytesIO()
                         fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
                         img_buffer.seek(0)
@@ -510,8 +530,6 @@ def create_app(
 
                     # Check if GIF already exists and display it
                     else:
-                        from pathlib import Path
-
                         gif_dir = Path("gifs")
                         potential_gif = gif_dir / f"{current}_S2.gif"
                         if potential_gif.exists():
@@ -599,8 +617,6 @@ def create_app(
                             fig = st.session_state.dw_dataset.plot_timeseries(current)
 
                             # Save figure to bytes buffer for download
-                            from io import BytesIO
-
                             img_buffer = BytesIO()
                             fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
                             img_buffer.seek(0)
