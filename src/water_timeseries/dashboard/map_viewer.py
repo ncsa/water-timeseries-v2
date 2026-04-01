@@ -1,5 +1,6 @@
 """Map Viewer dashboard component using Streamlit and Plotly."""
 
+from io import BytesIO
 from pathlib import Path
 from typing import List, Optional
 
@@ -292,37 +293,22 @@ def create_app(
     # Create sidebar for controls
     st.sidebar.header("Settings")
 
-    # Check EE_PROJECT environment variable
-    import os
-
-    default_ee_project = os.environ.get("EE_PROJECT", "")
-
-    # EE Project input
-    ee_project = st.sidebar.text_input(
-        "Google Earth Engine Project", value=default_ee_project, placeholder="Enter your GEE project ID"
+    # Plotting mode selection (static vs dynamic/interactive) - defaults to interactive
+    is_interactive = st.sidebar.toggle(
+        "Interactive Plotting",
+        value=True,
+        help="Enable interactive Plotly plots (hover for details, zoom, pan)",
     )
+    if is_interactive:
+        st.sidebar.caption("🖱️ Interactive mode - hover to see values, zoom & pan available")
+    else:
+        st.sidebar.caption("📊 Static mode - matplotlib plots")
 
-    # Button to set EE_PROJECT
-    if st.sidebar.button("Set EE Project"):
-        if ee_project:
-            os.environ["EE_PROJECT"] = ee_project
-            st.sidebar.success(f"EE_PROJECT set to: {ee_project}")
-        else:
-            st.sidebar.warning("Please enter a project ID")
-
-    # Data path input
-    default_path = str(data_path)
-    data_path_input = st.sidebar.text_input("Parquet File Path", value=default_path)
-
-    # Zarr data path input
-    default_zarr_path = str(zarr_path)
-    zarr_path_input = st.sidebar.text_input("Zarr Time Series Path", value=default_zarr_path)
-
-    # ID column input
-    id_column = st.sidebar.text_input("ID Column Name", value="id_geohash")
-
-    # Zoom level
-    zoom_level = st.sidebar.slider("Initial Zoom Level", min_value=1, max_value=20, value=10)
+    # Use function parameters for data paths
+    data_path_input = str(data_path)
+    zarr_path_input = str(zarr_path)
+    id_column = "id_geohash"
+    zoom_level = 10
 
     # Initialize dataset in session state if not already
     if "dw_dataset" not in st.session_state:
@@ -341,13 +327,34 @@ def create_app(
 
         # Display selected features in sidebar
         st.sidebar.divider()
-        st.sidebar.subheader("Selected Features")
+        st.sidebar.subheader("Previously Selected Features")
 
         clicked = viewer.get_clicked_features()
+
+        # Create a dropdown for selecting from previously clicked features
         if clicked:
-            st.sidebar.write("Clicked id_geohash values:")
-            for i, geohash in enumerate(clicked):
-                st.sidebar.code(geohash)
+            # Reverse to show latest clicked at the top
+            options = list(reversed(clicked))
+            current = viewer.get_selected_geohash()
+
+            # Set default index based on current selection
+            if current and current in options:
+                default_idx = options.index(current)
+            else:
+                default_idx = 0
+
+            selected_option = st.sidebar.selectbox(
+                "Previously clicked lakes:",
+                options,
+                index=default_idx,
+                label_visibility="collapsed",
+                help="Select a previously clicked lake",
+            )
+
+            # Update selection based on dropdown choice
+            if selected_option != st.session_state.selected_geohash:
+                st.session_state.selected_geohash = selected_option
+                st.rerun()
         else:
             st.sidebar.info("No features clicked yet. Click on a feature to select it.")
 
@@ -360,12 +367,6 @@ def create_app(
         if st.sidebar.button("Clear Selection"):
             viewer.clear_selection()
             st.rerun()
-
-        # Data info
-        st.sidebar.divider()
-        st.sidebar.subheader("Data Info")
-        st.sidebar.write(f"Total features: {len(viewer.gdf)}")
-        st.sidebar.write(f"Columns: {list(viewer.gdf.columns)}")
 
         # Time Series Plot Section
         if current:
@@ -448,26 +449,38 @@ def create_app(
             # Plot time series if available
             if st.session_state.dw_dataset is not None and id_available:
                 try:
-                    fig = st.session_state.dw_dataset.plot_timeseries(current)
+                    # Use interactive or static plotting based on toggle
+                    if is_interactive:
+                        fig = st.session_state.dw_dataset.plot_timeseries_interactive(current)
+                        st.plotly_chart(fig, use_container_width=True)
 
-                    # Save figure to bytes buffer for download
-                    from io import BytesIO
+                        # Convert figure to HTML for download
+                        html_buffer = fig.to_html(full_html=False, include_plotlyjs="cdn")
+                        st.download_button(
+                            label="💾 Save Interactive Plot (HTML)",
+                            data=html_buffer,
+                            file_name=f"timeseries_{current}.html",
+                            mime="text/html",
+                        )
+                    else:
+                        fig = st.session_state.dw_dataset.plot_timeseries(current)
 
-                    img_buffer = BytesIO()
-                    fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
-                    img_buffer.seek(0)
+                        # Save figure to bytes buffer for download
+                        img_buffer = BytesIO()
+                        fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
+                        img_buffer.seek(0)
 
-                    # Display and offer download
-                    st.pyplot(fig)
+                        # Display and offer download
+                        st.pyplot(fig)
 
-                    st.download_button(
-                        label="💾 Save Figure",
-                        data=img_buffer,
-                        file_name=f"timeseries_{current}.png",
-                        mime="image/png",
-                    )
+                        st.download_button(
+                            label="💾 Save Figure",
+                            data=img_buffer,
+                            file_name=f"timeseries_{current}.png",
+                            mime="image/png",
+                        )
 
-                    plt.close(fig)  # Close figure to free memory
+                        plt.close(fig)  # Close matplotlib figure
 
                     # ============================================
                     # Timelapse Section
@@ -517,8 +530,6 @@ def create_app(
 
                     # Check if GIF already exists and display it
                     else:
-                        from pathlib import Path
-
                         gif_dir = Path("gifs")
                         potential_gif = gif_dir / f"{current}_S2.gif"
                         if potential_gif.exists():
@@ -589,28 +600,40 @@ def create_app(
                 # Plot time series
                 if st.session_state.dw_dataset is not None and id_available:
                     try:
-                        fig = st.session_state.dw_dataset.plot_timeseries(current)
+                        # Use interactive or static plotting based on toggle
+                        if is_interactive:
+                            fig = st.session_state.dw_dataset.plot_timeseries_interactive(current)
+                            st.plotly_chart(fig, use_container_width=True)
 
-                        # Save figure to bytes buffer for download
-                        from io import BytesIO
-
-                        img_buffer = BytesIO()
-                        fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
-                        img_buffer.seek(0)
-
-                        # Display and offer download
-                        st.pyplot(fig)
-
-                        col1, col2 = st.columns([1, 4])
-                        with col1:
+                            # Convert figure to HTML for download
+                            html_buffer = fig.to_html(full_html=False, include_plotlyjs="cdn")
                             st.download_button(
-                                label="💾 Save Figure",
-                                data=img_buffer,
-                                file_name=f"timeseries_{current}.png",
-                                mime="image/png",
+                                label="💾 Save Interactive Plot (HTML)",
+                                data=html_buffer,
+                                file_name=f"timeseries_{current}.html",
+                                mime="text/html",
                             )
+                        else:
+                            fig = st.session_state.dw_dataset.plot_timeseries(current)
 
-                        plt.close(fig)
+                            # Save figure to bytes buffer for download
+                            img_buffer = BytesIO()
+                            fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
+                            img_buffer.seek(0)
+
+                            # Display and offer download
+                            st.pyplot(fig)
+
+                            col1, col2 = st.columns([1, 4])
+                            with col1:
+                                st.download_button(
+                                    label="💾 Save Figure",
+                                    data=img_buffer,
+                                    file_name=f"timeseries_{current}.png",
+                                    mime="image/png",
+                                )
+
+                            plt.close(fig)  # Close matplotlib figure
                     except Exception as e:
                         st.error(f"Error plotting time series: {e}")
 

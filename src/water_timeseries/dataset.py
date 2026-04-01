@@ -19,6 +19,10 @@ from water_timeseries.utils.plotting import (
     plot_water_time_series_jrc,
     prepare_data_for_plot_dw,
 )
+from water_timeseries.utils.plotting_dynamic import (
+    plot_water_time_series_dw_interactive,
+    plot_water_time_series_jrc_interactive,
+)
 
 
 class LakeDataset:
@@ -292,9 +296,21 @@ class DWDataset(LakeDataset):
         """Mask invalid data based on quality criteria.
 
         Removes observations where data quality is poor (high no-data area) or
-        where snow/ice coverage is excessive, which indicates poor classification.
+        where snow/ice coverage is excessive (more than 5%), which indicates poor classification.
         """
-        pass
+        ds = self.ds_normalized
+        # Mask where no-data area > 0
+        mask_nodata = ds["area_nodata"] <= 0
+        # Mask where snow/ice > 5% (indicates poor classification)
+        mask_snow = ds["snow_and_ice"] <= 0.05
+        # Combine masks
+        mask = mask_nodata & mask_snow
+
+        self.ds = self.ds.where(mask)
+        self.ds_normalized = self.ds_normalized.where(mask)
+
+        self.ds_ismasked_ = True
+        self.ds_normalized_ismasked_ = True
 
     def create_timelapse(
         self,
@@ -371,6 +387,43 @@ class DWDataset(LakeDataset):
             bp = None
 
         figure = plot_water_time_series_dw(
+            df_plot,
+            first_break=bp,
+            normalization_factor=normalization_factor,
+            lake_id=id_geohash,
+        )
+
+        return figure
+
+    def plot_timeseries_interactive(
+        self,
+        id_geohash: str,
+        breakpoints=None,
+    ):
+        """Plot the interactive time series for a specific geohash using Plotly.
+
+        Args:
+            id_geohash (str): The geohash identifier for the location.
+            breakpoints (BreakpointMethod, optional): Breakpoint detection method to use.
+
+        Returns:
+            plotly.graph_objects.Figure: Interactive Plotly figure.
+        """
+        df = self.ds.sel(id_geohash=id_geohash).load().to_dataframe().dropna()
+        df_plot = prepare_data_for_plot_dw(df, group_vegetation=True)
+        normalization_factor = df["area_data"].max()
+
+        if breakpoints is not None:
+            breaks = breakpoints.calculate_break(self, object_id=id_geohash)
+            if breaks is not None:
+                if len(breaks) > 0:
+                    bp = breaks["date_break"].iloc[0]
+                else:
+                    bp = None
+        else:
+            bp = None
+
+        figure = plot_water_time_series_dw_interactive(
             df_plot,
             first_break=bp,
             normalization_factor=normalization_factor,
@@ -460,4 +513,34 @@ class JRCDataset(LakeDataset):
         )
 
         # return figure
+        return fig
+
+    def plot_timeseries_interactive(
+        self,
+        id_geohash: str,
+        breakpoints=None,
+    ):
+        """Plot the interactive time series for a specific geohash using Plotly.
+
+        Args:
+            id_geohash (str): The geohash identifier for the location.
+            breakpoints (BreakpointMethod, optional): Breakpoint detection method to use (not used currently).
+
+        Returns:
+            plotly.graph_objects.Figure: Interactive Plotly figure.
+        """
+        df = self.ds.sel(id_geohash=id_geohash).load().to_dataframe().dropna().reset_index(drop=False)
+        normalization_factor = df["area_data"].max()
+
+        # Breakpoint processing disabled for now
+        bp = None
+
+        fig = plot_water_time_series_jrc_interactive(
+            df,
+            first_break=bp,
+            plot_variables=["area_water_permanent", "area_water_seasonal", "area_land"],
+            normalization_factor=normalization_factor,
+            lake_id=id_geohash,
+        )
+
         return fig
