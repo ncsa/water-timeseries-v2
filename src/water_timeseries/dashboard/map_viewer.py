@@ -284,8 +284,9 @@ def create_app(
     st.title("🗺️ Lake Polygon Map Viewer")
     st.markdown("""
     This dashboard displays lake polygons from a GeoDataFrame. 
+    - Polygons are **colored by NetChange_perc** (red = decrease, blue = increase)
     - **Hover** over a feature to see its attributes
-    - **Click** on a feature to select it and store its id_geohash
+    - **Click** on a feature to select it and view time series & create timelapses
     """)
 
     # Create sidebar for controls
