@@ -13,6 +13,15 @@ import xarray as xr
 from water_timeseries.dataset import DWDataset
 from water_timeseries.downloader import EarthEngineDownloader
 from water_timeseries.utils.io import load_vector_dataset
+from water_timeseries.utils.visualization import (
+    DEFAULT_HOVER_COLUMNS,
+    MAP_STYLING,
+    build_hover_template,
+    gdf_to_geojson_feature_collection,
+    get_colorbar_config,
+    get_z_values_for_coloring,
+    prepare_custom_data_for_plotly,
+)
 
 
 class MapViewer:
@@ -47,14 +56,8 @@ class MapViewer:
         """
         self.geometry_column = geometry_column
         self.id_column = id_column
-        # Default hover columns if not specified
-        self.hover_columns = hover_columns or [
-            "id_geohash",
-            "Area_start_ha",
-            "Area_end_ha",
-            "NetChange_ha",
-            "NetChange_perc",
-        ]
+        # Default hover columns if not specified (use from visualization module)
+        self.hover_columns = hover_columns or DEFAULT_HOVER_COLUMNS
         self.zoom = zoom
         self.map_center = map_center
 
@@ -113,29 +116,8 @@ class MapViewer:
         plot_df = self.gdf[cols].copy()
 
         # Convert all columns to strings and handle NaN/None/arrays
-        for col in plot_df.columns:
-            col_data = []
-            for val in plot_df[col]:
-                if pd.isna(val):
-                    col_data.append("")
-                elif isinstance(val, (list, tuple, set, bytes)):
-                    col_data.append(str(list(val)))
-                else:
-                    col_data.append(str(val))
-            plot_df[col] = col_data
-
+        # This is handled by prepare_custom_data_for_plotly when rendering
         return plot_df
-
-    def _gdf_to_geojson(self, gdf: gpd.GeoDataFrame) -> dict:
-        """Convert GeoDataFrame to GeoJSON feature collection.
-
-        Args:
-            gdf: GeoDataFrame to convert.
-
-        Returns:
-            GeoJSON feature collection dictionary.
-        """
-        return gdf.__geo_interface__
 
     def render(self) -> Optional[str]:
         """Render the interactive map in Streamlit.
@@ -166,39 +148,70 @@ class MapViewer:
         # Build hover fields list
         hover_fields = [col for col in plot_df.columns if col != self.id_column]
 
-        # Create hover template
-        hover_template = "<b>" + self.id_column + ": %{customdata[0]}</b><br>"
-        for i, field in enumerate(hover_fields):
-            hover_template += f"{field}: %{{customdata[{i + 1}]}}<br>"
-        hover_template += "<extra></extra>"
+        # Use utility function to build hover template
+        hover_template = build_hover_template(self.id_column, hover_fields)
 
-        # Prepare custom data for hover
-        custom_data = []
-        hover_cols = [self.id_column] + hover_fields
-        for col in hover_cols:
-            custom_data.append(plot_df[col].tolist())
+        # Use utility function to prepare custom data
+        custom_data = prepare_custom_data_for_plotly(plot_df, self.id_column, hover_fields)
 
-        # Transpose to get rows as tuples
-        custom_data = list(zip(*custom_data))
+        # Use utility function to convert to GeoJSON
+        geojson = gdf_to_geojson_feature_collection(valid_gdf)
 
-        # Convert to GeoJSON
-        geojson = self._gdf_to_geojson(valid_gdf)
+        # Use utility function to get z-values for coloring
+        z_values = get_z_values_for_coloring(valid_gdf, "NetChange_perc", clip_range=(-50, 50))
 
         # Create the map using Plotly graph_objects for polygon rendering
+        # Get styling from visualization module
+        unselected_style = MAP_STYLING["unselected"]
+        colorbar_config = get_colorbar_config("NetChange %", "RdYlBu", zmid=0)
+
         fig = go.Figure(
             go.Choroplethmapbox(
                 geojson=geojson,
                 locations=valid_gdf.index.tolist(),
-                z=[1] * len(valid_gdf),  # Dummy value for coloring
+                z=z_values,
                 customdata=custom_data,
                 hovertemplate=hover_template,
-                marker_opacity=0.5,
-                marker_line_width=1,
-                marker_line_color="blue",
-                colorscale=[[0, "blue"], [1, "blue"]],
-                showscale=False,
+                marker_opacity=unselected_style["opacity"],
+                marker_line_width=unselected_style["line_width"],
+                marker_line_color=unselected_style["line_color"],
+                colorscale=colorbar_config["colorscale"],
+                zmid=colorbar_config.get("zmid"),
+                showscale=colorbar_config["showscale"],
+                colorbar_title=colorbar_config["colorbar_title"],
             )
         )
+
+        # Add a second layer to highlight selected polygon with slightly thicker/darker outline
+        # This layer will be updated when selection changes
+        selected_geohash = st.session_state.get("selected_geohash")
+        if selected_geohash and selected_geohash in valid_gdf[self.id_column].values:
+            # Get the selected feature
+            selected_feature = valid_gdf[valid_gdf[self.id_column] == selected_geohash]
+            selected_geojson = gdf_to_geojson_feature_collection(selected_feature)
+            selected_idx = valid_gdf[valid_gdf[self.id_column] == selected_geohash].index.tolist()
+
+            # Use utility to get z-values for selected feature
+            selected_z = get_z_values_for_coloring(selected_feature, "NetChange_perc", clip_range=(-50, 50))
+
+            # Get styling from visualization module
+            selected_style = MAP_STYLING["selected"]
+
+            # Add highlight layer with slightly thicker and darker outline
+            fig.add_trace(
+                go.Choroplethmapbox(
+                    geojson=selected_geojson,
+                    locations=selected_idx,
+                    z=selected_z,
+                    marker_opacity=selected_style["opacity"],
+                    marker_line_width=selected_style["line_width"],
+                    marker_line_color=selected_style["line_color"],
+                    colorscale="RdYlBu",
+                    zmid=0,
+                    showscale=False,
+                    hoverinfo="skip",
+                )
+            )
 
         # Update layout
         fig.update_layout(
@@ -271,8 +284,9 @@ def create_app(
     st.title("🗺️ Lake Polygon Map Viewer")
     st.markdown("""
     This dashboard displays lake polygons from a GeoDataFrame. 
+    - Polygons are **colored by NetChange_perc** (red = decrease, blue = increase)
     - **Hover** over a feature to see its attributes
-    - **Click** on a feature to select it and store its id_geohash
+    - **Click** on a feature to select it and view time series & create timelapses
     """)
 
     # Create sidebar for controls
@@ -493,7 +507,9 @@ def create_app(
                                             mime="image/gif",
                                         )
                                 else:
-                                    st.info("Timelapse was skipped (file already exists). Set overwrite_exists=True to regenerate.")
+                                    st.info(
+                                        "Timelapse was skipped (file already exists). Set overwrite_exists=True to regenerate."
+                                    )
 
                             except Exception as e:
                                 st.error(f"Error creating timelapse: {e}")
