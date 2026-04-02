@@ -16,22 +16,22 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
 
-# Create a virtual environment first
+# Create and activate virtual environment
 RUN uv venv
-
-# Activate the virtual environment for subsequent commands
-ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Now install h3
+# Install h3 first
 RUN uv pip install "h3>=4.0.0"
 
-# Sync the rest of dependencies
+# Sync remaining dependencies
 RUN uv sync --frozen --no-dev
 
 COPY . .
 
-# Install the package
 RUN uv pip install -e .
+
+# Keep the venv active for runtime
+ENV PATH="/app/.venv/bin:$PATH"
+ENV VIRTUAL_ENV=/app/.venv
 
 ENTRYPOINT ["uv", "run", "water-timeseries"]
