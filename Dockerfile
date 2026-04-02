@@ -14,26 +14,22 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 WORKDIR /app
 
-# Copy all files needed for package metadata first
-COPY pyproject.toml uv.lock README.md ./
+# Copy everything at once
+COPY . .
 
-# Create and activate virtual environment
+# Create virtual environment
 RUN uv venv
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Install h3 first
 RUN uv pip install "h3>=4.0.0"
 
-# Sync remaining dependencies
+# Sync all dependencies (now README.md exists)
 RUN uv sync --frozen --no-dev
-
-# Copy the rest of the application
-COPY . .
 
 # Install the package in editable mode
 RUN uv pip install -e .
 
-# Keep the venv active for runtime
 ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV=/app/.venv
 
