@@ -39,7 +39,7 @@ spec:
       labels:
         long-running-job: "true"
     container:
-      image: ghcr.io/ncsa/water-timeseries:ncsa
+      image: ghcr.io/ncsa/water-timeseries-v2:ncsa
       imagePullPolicy: Always
       resources:
         requests:
