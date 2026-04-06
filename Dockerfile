@@ -15,13 +15,11 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 WORKDIR /app
 
 # Copy everything at once
-# COPY . .
-COPY /src .
-COPY /google_cloud_utils .
+COPY src/ ./src/
+COPY google_cloud_utils/ ./google_cloud_utils/
 COPY pyproject.toml .
 COPY uv.lock .
 COPY README.md .
-
 
 # Create virtual environment
 RUN uv venv
@@ -30,7 +28,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 # Install h3 first
 RUN uv pip install "h3>=4.0.0"
 
-# Sync all dependencies (now README.md exists)
+# Sync all dependencies
 RUN uv sync --frozen --no-dev
 
 # Install the package in editable mode
@@ -39,4 +37,6 @@ RUN uv pip install -e .
 ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV=/app/.venv
 
-ENTRYPOINT ["uv", "run", "water-timeseries"]
+# Remove the fixed ENTRYPOINT - we'll specify commands at runtime
+# Keep CMD as default for local testing, but it can be overridden
+CMD ["uv", "run", "water-timeseries"]
