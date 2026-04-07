@@ -500,7 +500,7 @@ def create_timelapse(
     # Convert bbox to Earth Engine FeatureCollection via geemap utilities
     # Note: geemap.bbox_to_gdf creates a GeoDataFrame, then gdf_to_ee converts to EE
     fc = geemap.gdf_to_ee(geemap.bbox_to_gdf(bbox.iloc[0]))
-    fc_lake =  geemap.gdf_to_ee(feature)
+    fc_lake = geemap.gdf_to_ee(feature)
 
     # Common kwargs shared between sentinel2_timelapse and landsat_timelapse
     timelapse_kwargs = {
