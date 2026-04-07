@@ -1,15 +1,26 @@
 """Map Viewer dashboard component using Streamlit and Plotly."""
 
+import os
 from io import BytesIO
 from pathlib import Path
 from typing import List, Optional
 
+import geemap
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 import xarray as xr
+
+if "EARTHENGINE_TOKEN" in os.environ.keys():
+    print("setting up with TOKEN")
+    geemap.ee_initialize()
+
+elif "EARTHENGINE_TOKEN" in st.secrets.keys():
+    print("setting up with TOKEN from secrets")
+    os.environ["EARTHENGINE_TOKEN"] = st.secrets["EARTHENGINE_TOKEN"]
+    geemap.ee_initialize()
 
 from water_timeseries.dataset import DWDataset
 from water_timeseries.downloader import EarthEngineDownloader
@@ -559,7 +570,7 @@ def create_app(
                                             if gif_path_s2 is not None:
                                                 st.success(f"Timelapse created: {gif_path_s2}")
                                             else:
-                                                st.info(f"Timelapse already exists")
+                                                st.info("Timelapse already exists")
 
                                             # Use simple path like the working version
                                             st.image(str(gif_s2_path), caption=f"Timelapse: {current}", width=512)
@@ -586,7 +597,7 @@ def create_app(
                                                 if gif_path_landsat is not None:
                                                     st.success(f"Timelapse created: {gif_path_landsat}")
                                                 else:
-                                                    st.info(f"Timelapse already exists")
+                                                    st.info("Timelapse already exists")
 
                                                 # Use simple path like the working version
                                                 st.image(str(gif_ls_path), caption=f"Timelapse: {current}", width=512)
@@ -611,7 +622,7 @@ def create_app(
                             with existing_col_s2:
                                 if potential_gif_s2.exists():
                                     st.subheader("Sentinel-2 (2016-2025)")
-                                    st.info(f"Timelapse already exists")
+                                    st.info("Timelapse already exists")
                                     # Use simple path like the working version
                                     st.image(str(potential_gif_s2), caption=f"Timelapse: {current}", width=512)
 
@@ -627,7 +638,7 @@ def create_app(
                             with existing_col_ls:
                                 if potential_gif_landsat.exists():
                                     st.subheader("Landsat (2000-2025)")
-                                    st.info(f"Timelapse already exists")
+                                    st.info("Timelapse already exists")
                                     # Use simple path like the working version
                                     st.image(str(potential_gif_landsat), caption=f"Timelapse: {current}", width=512)
 
